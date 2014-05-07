@@ -3,7 +3,26 @@
 
 A library for declaring configuration vars in a centralized fashion. The complementary plugin allows one to gather and emit all configured vars and their docstrings, default values, etc.
 
-Configuration is an [EDN](http://edn-format.org) map of namespaced symbols (naming a config var) to the value to be bound to the corresponding var:
+
+## Motiviation
+
+Most configuration systems rely on consumers pulling named values from something akin to a global map (cf. [environ](https://github.com/weavejester/environ)). This yields a number of negative consequences:
+
+- It difficult to identify what configuration values are required by a system.
+- There is no single place to put documentation for a configurable entry.
+- Default values for missing configuration can be inconsistent across consumers.
+- Sources of configuration values are widely varied, e.g., properties files, system environment variables.
+
+This library attempts to address the above issues by:
+
+- Using declaration of configurable vars, which can be documented, defaulted, and used as a canonical source of data for other code just as any other library-specific var would be.
+- Providing introspection into the configurable surface of an application and its dependencies.
+- Relying on pushing values to all configuration vars from a single source.
+
+
+## Overview
+
+Configuration is provided in an [EDN](http://edn-format.org) map of namespaced symbols (naming a config var) to the value to be bound to the corresponding var:
 
 ```clojure
 {
@@ -15,8 +34,7 @@ com.example/aws-secret-key #config/env "AWS_SECRET_KEY"
 
 As shown above, a custom data reader has been provided to allow for pulling in String values from the environment. If the environment does not have that entry, the var will use its default value or remain unbound.
 
-
-Configuration is provided to an application in one of two ways:
+The configuration EDN map is provided to an application in one of two ways:
 
 1. A `config.edn` file in the current working directory.
 2. A `config.edn` java system property (e.g., a command line arg `-Dconfig.edn=...`). The value can be any string consumable by [`clojure.java.io/reader`](http://clojure.github.io/clojure/clojure.java.io-api.html#clojure.java.io/reader).
