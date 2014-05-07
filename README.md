@@ -8,8 +8,9 @@ A library for declaring configuration vars in a centralized fashion. The complem
 
 Most configuration systems rely on consumers pulling named values from something akin to a global map (cf. [environ](https://github.com/weavejester/environ)). This yields a number of negative consequences:
 
-- It difficult to identify what configuration values are required by a system.
+- It is difficult to identify what configuration values are required by a system.
 - There is no single place to put documentation for a configurable entry.
+- Multiple consumers may independently pull directly from the configuration source, leaving only the configuration key to reveal their shared dependency.
 - Default values for missing configuration can be inconsistent across consumers.
 - Sources of configuration values are widely varied, e.g., properties files, system environment variables.
 
@@ -17,7 +18,7 @@ This library attempts to address the above issues by:
 
 - Using declaration of configurable vars, which can be documented, defaulted, and used as a canonical source of data for other code just as any other library-specific var would be.
 - Providing introspection into the configurable surface of an application and its dependencies.
-- Relying on pushing values to all configuration vars from a single source.
+- Relying on pushing values to all configuration vars, and doing so from a single source.
 
 
 ## Overview
