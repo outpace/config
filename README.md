@@ -28,6 +28,8 @@ Provisioning via environment variable is intentionally unsupported, though feel 
 
 ## Installation
 
+*Note: until these are pushed into our repo, `git clone` this project and then invoke `lein install` in each subdirectory.*
+
 Applications and libraries wishing to declare config vars, add the following dependency in your `project.clj` file:
 
 ```clojure
@@ -80,6 +82,5 @@ Config vars that do not have a default value, and are not yet specified in the `
 Entries that have no corresponding config var will be noted as such, and preserved across regenerations.  This may happen when a library with config vars has been removed from the application's dependencies. If the library is added back, the entries will still be used, and regeneration will re-categorize them.
 
 Config vars that have a default value, but no explicitly set value will be shown as a commented-out map.
-
 
 
