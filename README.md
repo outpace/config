@@ -9,11 +9,11 @@ Configuration is an [EDN](http://edn-format.org) map of namespaced symbols (nami
 {
 com.example/greeting       "Hello World!"
 com.example/tree           {:id 1, :children #{{:id 2} {:id 3}}}
-com.example/aws-secret-key #config/env AWS_SECRET_KEY
+com.example/aws-secret-key #config/env "AWS_SECRET_KEY"
 }
 ```
 
-~~As shown above, a custom data reader has been provided to allow for pulling in String values from the environment. If the environment does not have that entry, the var will use its default value or remain unbound.~~ TBD
+As shown above, a custom data reader has been provided to allow for pulling in String values from the environment. If the environment does not have that entry, the var will use its default value or remain unbound.
 
 
 Configuration is provided to an application in one of two ways:
