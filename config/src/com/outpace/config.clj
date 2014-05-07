@@ -32,11 +32,14 @@
          (def ~name (get config qname#))
          (def ~name))))
   ([name default-val]
+    (defconfig name nil default-val))
+  ([name doc default-val]
     `(let [qname# (symbol (str *ns*) (str '~name))
            default-val# ~default-val]
        (swap! defaults assoc qname# default-val#)
        (swap! required disj qname#)
-       (if (contains? config qname#)
-         (def ~name (get config qname#))
-         (def ~name default-val#)))))
+       (let [val# (get config qname# default-val#)]
+         (if ~doc
+           (def ~name ~doc val#)
+           (def ~name val#))))))
 
