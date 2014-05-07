@@ -1,7 +1,7 @@
 # Config
 
 
-A library for declaring configuration vars in a centralized fashion. The complementary plugin allows one to gather and emit all configured vars, their default values, etc.
+A library for declaring configuration vars in a centralized fashion. The complementary plugin allows one to gather and emit all configured vars and their docstrings, default values, etc.
 
 Configuration is an [EDN](http://edn-format.org) map of namespaced symbols (naming a config var) to the value to be bound to the corresponding var:
 
@@ -19,7 +19,7 @@ com.example/aws-secret-key ^:config/env AWS_SECRET_KEY
 Configuration is provided to an application in one of two ways:
 
 1. A `config.edn` file in the current working directory.
-2. A `config.edn` java system property (e.g., a command line arg `-Dconfig.edn=...`). The value can be any string consumable by `clojure.java.io/reader`.
+2. A `config.edn` java system property (e.g., a command line arg `-Dconfig.edn=...`). The value can be any string consumable by [`clojure.java.io/reader`](http://clojure.github.io/clojure/clojure.java.io-api.html#clojure.java.io/reader).
 
 If both are provided, the system property will be used.
 
