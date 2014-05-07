@@ -15,7 +15,7 @@
          missing-set#    (set/difference required-set# available-set#)
          unused-set#     (set/difference available-set# wanted-set#)
          explicit-set#   (set/intersection config-keyset# wanted-set#)
-         implicit-set#   (set/intersection default-keyset# wanted-set#)
+         implicit-set#   (set/difference default-keyset# explicit-set#)
          content#        (with-out-str
                            (println "{")
                            (when (seq missing-set#)
