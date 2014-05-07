@@ -9,7 +9,7 @@ Configuration is an [EDN](http://edn-format.org) map of namespaced symbols (nami
 {
 com.example/greeting       "Hello World!"
 com.example/tree           {:id 1, :children #{{:id 2} {:id 3}}}
-com.example/aws-secret-key ^:config/env AWS_SECRET_KEY
+com.example/aws-secret-key #config/env AWS_SECRET_KEY
 }
 ```
 
