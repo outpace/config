@@ -5,13 +5,19 @@
 (defprotocol Extractable
   (extract [this] "Extracts the value to be bound to a config var"))
 
+(extend-protocol Extractable
+  nil
+  (extract [x] x)
+  Object
+  (extract [x] x))
+
 (defprotocol Optional
   (provided? [this] "Returns true if the item should be bound to a config var."))
 
-(extend-type Object
-  Extractable
-  (extract [o] o)
-  Optional
+(extend-protocol Optional
+  nil
+  (provided? [_] true)
+  Object
   (provided? [_] true))
 
 (defrecord EnvVar [name value defined?]
