@@ -87,8 +87,8 @@ USAGE: lein config
           `(do
              (println "Loading namespaces")
              ~load-em
-             ~generate-file
-             (println "Generated config.edn"))
+             (println "Generating config.edn")
+             ~generate-file)
           '(require '[com.outpace.config :as conf]
                     '[clojure.java.io :as io]
                     '[clojure.pprint :refer [pprint]]
