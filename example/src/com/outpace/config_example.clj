@@ -7,7 +7,7 @@
 
 (defconfig ^:dynamic *rebindable-var* "The doc for *rebindable-var*." :rebindable-default)
 
-(defn show []
+(defn -main []
   (println "my-var:          " my-var)
   (println "var-with-default:" var-with-default)
   (println "*rebindable-var*:" *rebindable-var*))
