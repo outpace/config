@@ -125,7 +125,7 @@ com.example/bbb :configured-bbb #_:default-bbb
 }
 ```
 
-The first section lists comented-out config vars that do not have a default value nor configured value, thus will be unbound at runtime. If a config value is provided, these entries will be re-categorized after regeneration.
+The first section lists commented-out config vars that do not have a default value nor configured value, thus will be unbound at runtime. If a config value is provided, these entries will be re-categorized after regeneration.
 
 The second section lists config entries that have no corresponding config var. This may happen after code change, or when a dependent library has been removed. If the config var reappears, these entries will be re-categorized after regeneration.
 
