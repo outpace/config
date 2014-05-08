@@ -33,7 +33,7 @@ com.example/aws-secret-key #config/env "AWS_SECRET_KEY"
 }
 ```
 
-As shown above, a custom data reader has been provided to allow for pulling in String values from the environment. If the environment does not have that entry, the var will use its default value or remain unbound.
+As shown above, a custom data-reader (`#config/env`) has been provided to allow for pulling in values from the environment. If the environment does not have that entry, the var will use its default value or remain unbound.
 
 The configuration EDN map is provided to an application in one of two ways:
 
@@ -92,7 +92,7 @@ To generate a `config.edn` file, invoke the following the the same directory as 
 lein config
 ```
 
-If a `config.edn` file is already present, its config contents will be loaded, and thus be preserved by the replacing file.
+If a `config.edn` file is already present, its contents will be loaded, and thus preserved by the replacing file.
 
 The following is an example of a generated `config.edn` file:
 
@@ -125,7 +125,7 @@ com.example/bbb :configured-bbb #_:default-bbb
 }
 ```
 
-The first section lists config vars that do not have a default value nor configured value, thus will be unbound at runtime. If a config value is provided, these entries will be re-categorized after regeneration.
+The first section lists comented-out config vars that do not have a default value nor configured value, thus will be unbound at runtime. If a config value is provided, these entries will be re-categorized after regeneration.
 
 The second section lists config entries that have no corresponding config var. This may happen after code change, or when a dependent library has been removed. If the config var reappears, these entries will be re-categorized after regeneration.
 
