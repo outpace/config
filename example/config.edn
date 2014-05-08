@@ -1,42 +1,35 @@
 {
 
-;; REQUIRED CONFIG VARS WITHOUT VALUES -- FIX THEM.
+;; UNBOUND CONFIG VARS:
 
-#_ #{
 ; The doc for my-var.
-com.outpace.config-example/my-var
-
-}
+#_com.outpace.config-example/my-var
 
 
-;; UNUSED CONFIG ENTRIES.
+;; UNUSED CONFIG ENTRIES:
 
 unused/var nil
 
 
-
-;; CONFIG VARS.
+;; CONFIG ENTRIES:
 
 ; The doc for *rebindable-var*.
-com.outpace.config-example/*rebindable-var* :configured-value
-
-; Missing env-var with a default value.
-com.outpace.config-example/missing-env-default #config/env "NOT-A-ENV-VAR"
+com.outpace.config-example/*rebindable-var*
+:configured-value
+#_:rebindable-default
 
 ; Missing env-var without a default value.
 com.outpace.config-example/missing-env #config/env "NOT-A-ENV-VAR"
 
+; Missing env-var with a default value.
+com.outpace.config-example/missing-env-default
+#config/env "NOT-A-ENV-VAR"
+#_:default-missing
+
 ; The name of the user
 com.outpace.config-example/the-user #config/env "USER"
 
-
-
-;; DEFAULTED CONFIG VARS.
-
-#_ {
 ; The doc for var-with-default.
-com.outpace.config-example/var-with-default :default-value
-
-}
+#_com.outpace.config-example/var-with-default #_:default-value
 
 }
