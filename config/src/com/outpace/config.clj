@@ -29,7 +29,9 @@
 (defmethod print-method EnvVar [evar ^java.io.Writer w]
   (.write w (str "#config/env " (pr-str (.name evar)))))
 
-(defn read-env [name]
+(defn read-env
+  "Returns an EnvVar identified by the specified string name."
+  [name]
   (if (and name (string? name))
     (->EnvVar name (System/getenv name) (contains? (System/getenv) name))
     (throw (IllegalArgumentException. (str "Argument to #config/env must be a string: " (pr-str name))))))
@@ -52,12 +54,6 @@
   (def ^{:doc "The map of explicitly-specified configuration values. Avoid using this directly."}
        config {}))
 
-(def ^{:doc "An atom containing the map of symbols for the loaded defconfig vars to their default values."}
-  defaults (atom {}))
-
-(def ^{:doc "An atom containing the set of symbols for the loaded defconfig vars that do not have a default value."}
-  required (atom #{}))
-
 (defn present?
   "Returns true if a configuration entry exists for the qname and, if an
    Optional value, the value is provided."
@@ -66,13 +62,24 @@
        (provided? (get config qname))))
 
 (defn lookup
-  "Returns the extracted value if the qname is present, otherwise default-val or nil."
+  "Returns the extracted value if the qname is present, otherwise default-val
+   or nil."
   ([qname]
     (extract (get config qname)))
   ([qname default-val]
     (if (present? qname)
       (extract (get config qname))
       default-val)))
+
+(def defaults
+  "An atom containing the map of symbols for the loaded defconfig vars to their
+   default values."
+  (atom {}))
+
+(def required
+  "An atom containing the set of symbols for the loaded defconfig vars that do
+   not have a default value."
+  (atom #{}))
 
 (defmacro defconfig
   "Same as (def name doc-string? init?) except the var's value may be configured

@@ -61,7 +61,7 @@ Applications wishing to expose config vars and generate a base `config.edn` file
 :plugins [[com.outpace/lein-config "0.1.0"]]
 ```
 
-Note: it is inappropriate for libraries to include their own `config.edn` since that is an application deployment concern. Including default values in-code (which can then be exposed by the plugin) is acceptable.
+Note: it is inappropriate for libraries to include their own `config.edn` file since that is an application deployment concern. Including default values in-code (which can then be exposed by the plugin) is acceptable.
 
 
 ## Config Usage
@@ -84,7 +84,7 @@ The `com.outpace.config` namespace includes the current state of the configurati
 
 ## Plugin Usage
 
-The plugin has one function, to generate a `config.edn` file containing everything one may need to know about the state of the config vars in the application and its dependent namespaces.
+The plugin has one function: generate a `config.edn` file containing everything one may need to know about the state of the config vars in the application and its dependent namespaces.
 
 To generate a `config.edn` file, invoke the following the the same directory as your `project.clj` file:
 
@@ -94,12 +94,42 @@ lein config
 
 If a `config.edn` file is already present, its config contents will be loaded, and thus be preserved by the replacing file.
 
-~~Entries that explicitly override a config var that has a default value will have that (commented-out) default value shown as well.~~ TBD
+The following is an example of a generated `config.edn` file:
 
-Config vars that do not have a default value, and are not yet specified in the `config.edn` (thus will be unbound at runtime) will be listed at the top of the file as a commented-out set.
+```clojure
+{
 
-Entries that have no corresponding config var will be noted as such, and preserved across regenerations.  This may happen when a library with config vars has been removed from the application's dependencies. If the library is added back, the entries will still be used, and regeneration will re-categorize them.
+;; UNBOUND CONFIG VARS:
 
-Config vars that have a default value, but no explicitly set value will be shown as a commented-out map.
+; This is the docstring for the 'foo' var. This
+; var does not have a default value.
+#_com.example/foo
+
+
+;; UNUSED CONFIG ENTRIES:
+
+com.example/bar 123
+
+
+;; CONFIG ENTRIES:
+
+; The docstring for aaa.
+com.example/aaa :configured-aaa
+
+; The docstring for bbb. This var has a default value.
+com.example/bbb :configured-bbb #_:default-bbb
+
+; The docstring for ccc. This var has a default value.
+#_com.example/ccc #_:default-ccc
+
+}
+```
+
+The first section lists config vars that do not have a default value nor configured value, thus will be unbound at runtime. If a config value is provided, these entries will be re-categorized after regeneration.
+
+The second section lists config entries that have no corresponding config var. This may happen after code change, or when a dependent library has been removed. If the config var reappears, these entries will be re-categorized after regeneration.
+
+The third section lists all config vars used by the system, and their respective values.  For reference purposes, commented-out default values will be included after the configured value.  Likewise, commented-out entries will be included when their default values are used.
+
 
 
