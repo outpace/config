@@ -37,22 +37,34 @@
     (throw (IllegalArgumentException. (str "Argument to #config/env must be a string: " (pr-str name))))))
 
 (defn valid-key?
-  "Returns true IFF k is acceptable as a key in config.edn,
-   i.e., a namespaced symbol."
+  "Returns true IFF k is acceptable as a key in config.edn, i.e., a namespaced
+   symbol."
   [k]
   (and (symbol? k) (namespace k)))
 
-(if-let [source (or (System/getProperty "config.edn")
-                    (let [file (io/file "config.edn")] (when (.exists file) (.getAbsolutePath file))))]
-  (let [config-map (edn/read-string {:readers *data-readers*} (slurp source))
-        invalid-keys (remove valid-key? (keys config-map))]
-    (when (seq invalid-keys)
+(defn config-source
+  "Returns the source of config.edn if provided, otherwise nil."
+  []
+  (or (System/getProperty "config.edn")
+      (let [file (io/file "config.edn")]
+        (when (.exists file)
+          (.getAbsolutePath file)))))
+
+(defn read-config
+  "Reads the config.edn map from a source acceptable to clojure.java.io/reader."
+  [source]
+  (let [config-map (edn/read-string {:readers *data-readers*} (slurp source))]
+    (when-not (map? config-map)
+      (throw (IllegalArgumentException. (str "Configuration must be an EDN map: " (pr-str config-map)))))
+    (when-let [invalid-keys (seq (remove valid-key? (keys config-map)))]
       (throw (IllegalArgumentException. (str "Configuration keys must be namespaced symbols: " (pr-str invalid-keys)))))
-    (def ^{::source source
-           :doc "The map of explicitly-specified configuration values. Avoid using this directly."}
-         config config-map))
-  (def ^{:doc "The map of explicitly-specified configuration values. Avoid using this directly."}
-       config {}))
+    (vary-meta config-map assoc ::source source)))
+
+(def config
+  "The map of explicit configuration values."
+  (if-let [source (config-source)]
+    (read-config source)
+    {}))
 
 (defn present?
   "Returns true if a configuration entry exists for the qname and, if an
@@ -68,40 +80,56 @@
     (extract (get config qname)))
   ([qname default-val]
     (if (present? qname)
-      (extract (get config qname))
+      (lookup name)
       default-val)))
 
 (def defaults
-  "An atom containing the map of symbols for the loaded defconfig vars to their
+  "An ref containing the map of symbols for the loaded defconfig vars to their
    default values."
-  (atom {}))
+  (ref {}))
 
 (def required
-  "An atom containing the set of symbols for the loaded defconfig vars that do
+  "An ref containing the set of symbols for the loaded defconfig vars that do
    not have a default value."
-  (atom #{}))
+  (ref #{}))
+
+(defn var-symbol
+  "Returns the namespace-qualified symbol for the var."
+  [v]
+  (symbol (-> v meta :ns ns-name name)
+          (-> v meta :name name)))
 
 (defmacro defconfig
   "Same as (def name doc-string? init?) except the var's value may be configured
    at load-time by this library. Note that default-val will be evaluated, even
    if there is a configured value"
   ([name]
-    `(let [qname# (symbol (str *ns*) (str '~name))]
-       (swap! required conj qname#)
-       (swap! defaults dissoc qname#)
-       (if (present? qname#)
-         (def ~name (lookup qname#))
-         (def ~name))))
+    `(let [var#   (def ~name)
+           qname# (var-symbol var#)]
+       (dosync
+         ; keep consistent with the fact that redefining a bound var does not unbind it
+         (when-not (contains? (ensure defaults) qname#)
+           (alter required conj qname#)))
+       (when (present? qname#)
+         (alter-var-root var# (constantly (lookup qname#))))
+       var#))
   ([name default-val]
-    `(let [qname# (symbol (str *ns*) (str '~name))
-           default-val# ~default-val]
-       (swap! defaults assoc qname# default-val#)
-       (swap! required disj qname#)
-       (def ~name (lookup qname# default-val#))))
+    `(let [default-val# ~default-val
+           var#         (def ~name default-val#)
+           qname#       (var-symbol var#)]
+       (dosync
+         (alter defaults assoc qname# default-val#)
+         (alter required disj qname#))
+       (when (present? qname#)
+         (alter-var-root var# (constantly (lookup qname#))))
+       var#))
   ([name doc default-val]
-    `(let [qname# (symbol (str *ns*) (str '~name))
-           default-val# ~default-val]
-       (swap! defaults assoc qname# default-val#)
-       (swap! required disj qname#)
-       (def ~name ~doc (lookup qname# default-val#)))))
-
+    `(let [default-val# ~default-val
+           var#         (def ~name ~doc default-val#)
+           qname#       (var-symbol var#)]
+       (dosync
+         (alter defaults assoc qname# default-val#)
+         (alter required disj qname#))
+       (when (present? qname#)
+         (alter-var-root var# (constantly (lookup qname#))))
+       var#)))

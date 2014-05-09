@@ -1,8 +1,6 @@
 (ns com.outpace.config-test
   (:use clojure.test
-        com.outpace.config)
-  (:require [clojure.edn :as edn]))
-
+        com.outpace.config))
 
 (deftest test-EnvVar
   (let [name     "name"
@@ -30,7 +28,86 @@
     (testing "EnvVar for missing environment variable."
       (let [ks   (set (keys (System/getenv)))
             name (first (remove ks (map str (range))))
-            ev    (read-env name)]
+            ev   (read-env name)]
         (is (= name (:name ev)))
         (is (nil? (:value ev)))
         (is (not (:defined? ev)))))))
+
+(deftest test-defconfig
+  (testing "Without config entry."
+    (testing "No default val, no docstring."
+      (defconfig aaa)
+      (is (not (bound? #'aaa))))
+    (testing "With default, no docstring."
+      (defconfig bbb :default)
+      (is (= :default bbb)))
+    (testing "With default and docstring."
+      (defconfig ccc "doc" :default)
+      (is (= :default ccc))
+      (is (= "doc" (:doc (meta #'ccc)))))
+    (testing "Repeat defconfigs yield consistent state."
+      (defconfig ddd)
+      (testing "Including default."
+        (defconfig ddd :default)
+        (is (nil? (:doc (meta #'ddd))))
+        (is (= :default ddd))
+        (is (not (contains? @required `ddd)))
+        (is (contains? @defaults `ddd)))
+      (testing "Including docstring."
+        (defconfig ddd "doc" :default2)
+        (is (= "doc" (:doc (meta #'ddd))))
+        (is (= :default2 ddd))
+        (is (not (contains? @required `ddd)))
+        (is (contains? @defaults `ddd)))
+      (testing "Omitting docstring."
+        (defconfig ddd :default3)
+        (is (nil? (:doc (meta #'ddd))))
+        (is (= :default3 ddd))
+        (is (not (contains? @required `ddd)))
+        (is (contains? @defaults `ddd)))
+      (testing "Omitting default does not remove it, just like def."
+        (defconfig ddd)
+        (is (nil? (:doc (meta #'ddd))))
+        (is (= :default3 ddd))
+        (is (not (contains? @required `ddd)))
+        (is (contains? @defaults `ddd)))))
+  (testing "With config entry"
+    (with-redefs [config {`eee :config `fff :config `ggg :config `hhh :config}]
+      (testing "No default val, no docstring"
+        (defconfig eee)
+        (is (= :config eee)))
+      (testing "With default, no docstring"
+        (defconfig fff :default)
+        (is (= :config fff)))
+      (testing "With default and docstring"
+        (defconfig ggg "doc" :default)
+        (is (= :config ggg))
+        (is (= "doc" (:doc (meta #'ggg)))))
+      (testing "Repeat defconfigs yield consistent state."
+        (defconfig hhh)
+        (testing "Including default."
+          (defconfig hhh :default)
+          (is (nil? (:doc (meta #'hhh))))
+          (is (= :config hhh))
+          (is (not (contains? @required `hhh)))
+          (is (= :default (@defaults `hhh))))
+        (testing "Including docstring."
+          (defconfig hhh "doc" :default2)
+          (is (= "doc" (:doc (meta #'hhh))))
+          (is (= :config hhh))
+          (is (not (contains? @required `hhh)))
+          (is (= :default2 (@defaults `hhh))))
+        (testing "Omitting docstring."
+          (defconfig hhh :default3)
+          (is (nil? (:doc (meta #'hhh))))
+          (is (= :config hhh))
+          (is (not (contains? @required `hhh)))
+          (is (= :default3 (@defaults `hhh))))
+        (testing "Omitting default does not remove it, just like def."
+          (defconfig hhh)
+          (is (nil? (:doc (meta #'hhh))))
+          (is (= :config hhh))
+          (is (not (contains? @required `hhh)))
+          (is (= :default3 (@defaults `hhh)))))))
+  (doseq [v [#'aaa #'bbb #'ccc #'ddd #'eee #'fff #'ggg #'hhh]]
+    (.unbindRoot v)))
