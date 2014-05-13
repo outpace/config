@@ -26,7 +26,7 @@
   Optional
   (provided? [_] defined?))
 
-(defmethod print-method EnvVar [evar ^java.io.Writer w]
+(defmethod print-method EnvVar [^EnvVar evar ^java.io.Writer w]
   (.write w (str "#config/env " (pr-str (.name evar)))))
 
 (defn read-env
