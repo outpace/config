@@ -47,15 +47,13 @@ Provisioning via environment variable is intentionally unsupported, though feel 
 
 ## Installation
 
-*Note: until these are pushed into our repo, `git clone` this project and then invoke `lein install` in each subdirectory.*
-
 Applications and libraries wishing to declare config vars, add the following dependency in your `project.clj` file:
 
 ```clojure
 :dependencies [[com.outpace/config "0.1.0"]]
 ```
 
-Note: it is inappropriate for libraries to include their own `config.edn` file since that is an application deployment concern. Including default values in-code (which can then be exposed by the plugin) is acceptable.
+Note: it is inappropriate for libraries to include their own `config.edn` file since that is an application deployment concern. Including default values in-code (which can then be exposed by the generator) is acceptable.
 
 
 ## Config Usage
