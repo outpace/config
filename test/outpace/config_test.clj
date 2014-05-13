@@ -35,6 +35,8 @@
 
 (deftest test-defconfig
   (testing "Without config entry."
+    (testing "Error on required."
+      (is (thrown? Exception (defconfig ^:required req))))
     (testing "No default val, no docstring."
       (defconfig aaa)
       (is (not (bound? #'aaa))))
@@ -111,3 +113,16 @@
           (is (= :default3 (@defaults `hhh)))))))
   (doseq [v [#'aaa #'bbb #'ccc #'ddd #'eee #'fff #'ggg #'hhh]]
     (.unbindRoot v)))
+
+(deftest test-defconfig!
+  (testing "Preserves metadata"
+    (with-redefs [config {`req1 :config}]
+      (defconfig! ^{:doc "foobar"} req1)
+      (is (-> #'req1 meta :required))
+      (is (= "foobar" (-> #'req1 meta :doc)))))
+  (testing "No error when value provided"
+    (with-redefs [config {`req2 :config}]
+      (defconfig! req2)
+      (is (-> #'req2 meta :required))))
+  (testing "Error when no value provided"
+    (is (thrown? Exception (defconfig! req3)))))
