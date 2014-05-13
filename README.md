@@ -1,7 +1,7 @@
 # Config
 
 
-A library for declaring configuration vars in a centralized fashion. The complementary plugin allows one to gather and emit all configured vars and their docstrings, default values, etc.
+A library for declaring configuration vars in a centralized fashion. Included tooling allows one to gather and emit all configured vars and their docstrings, default values, etc.
 
 
 ## Motiviation
@@ -55,12 +55,6 @@ Applications and libraries wishing to declare config vars, add the following dep
 :dependencies [[com.outpace/config "0.1.0"]]
 ```
 
-Applications wishing to expose config vars and generate a base `config.edn` file, add the following plugin in your `project.clj` file:
-
-```clojure
-:plugins [[com.outpace/lein-config "0.1.0"]]
-```
-
 Note: it is inappropriate for libraries to include their own `config.edn` file since that is an application deployment concern. Including default values in-code (which can then be exposed by the plugin) is acceptable.
 
 
@@ -69,7 +63,7 @@ Note: it is inappropriate for libraries to include their own `config.edn` file s
 Declaring config vars is straightforward:
 
 ```clojure
-(require '[com.outpace.config :refer [defconfig]])
+(require '[outpace.config :refer [defconfig]])
 
 (defconfig my-var)
 
@@ -80,19 +74,25 @@ Declaring config vars is straightforward:
 
 As shown above, the `defconfig` form supports anything a regular `def` form does.
 
-The `com.outpace.config` namespace includes the current state of the configuration, and while it can be used by code to explicitly pull config values, **this is strongly discouraged**; just use `defconfig`.
+The `outpace.config` namespace includes the current state of the configuration, and while it can be used by code to explicitly pull config values, **this is strongly discouraged**; just use `defconfig`.
 
-## Plugin Usage
+## Generator Usage
 
-The plugin has one function: generate a `config.edn` file containing everything one may need to know about the state of the config vars in the application and its dependent namespaces.
+The `outpace.config.generate` namespace exists to generate a `config.edn` file containing everything one may need to know about the state of the config vars in the application and its dependent namespaces. If a `config.edn` file is already present, its contents will be loaded, and thus preserved by the replacing file.
 
 To generate a `config.edn` file, invoke the following the the same directory as your `project.clj` file:
 
 ```bash
-lein config
+lein run -m outpace.config.generate
 ```
 
-If a `config.edn` file is already present, its contents will be loaded, and thus preserved by the replacing file.
+Alternately, one can just invoke `lein config` by adding the following to `project.clj`:
+
+```clojure
+:aliases {"config" ["run" "-m" "outpace.config.generate"]}
+```
+
+The generator can take an optional `:strict` flag (e.g., `lein config :strict`) that will result in an exception after file generation if there are any config vars with neither a default value nor configured value.
 
 The following is an example of a generated `config.edn` file:
 
