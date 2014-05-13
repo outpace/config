@@ -1,12 +1,12 @@
-(ns com.outpace.config.generate
+(ns outpace.config.generate
   "Namespace for generating a config.edn file.
    Example usage:
-     lein run -m com.outpace.config.generate :strict"
+     lein run -m outpace.config.generate :strict"
   (:require [clojure.java.io :as io]
             [clojure.set :as set]
             [clojure.string :as str]
             [clojure.tools.namespace.repl :as nsr]
-            [com.outpace.config :as conf]))
+            [outpace.config :as conf]))
 
 (def ^:private nl-str (println-str))
 

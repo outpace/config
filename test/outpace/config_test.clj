@@ -1,6 +1,6 @@
-(ns com.outpace.config-test
+(ns outpace.config-test
   (:use clojure.test
-        com.outpace.config))
+        outpace.config))
 
 (deftest test-EnvVar
   (let [name     "name"

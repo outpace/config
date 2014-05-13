@@ -1,4 +1,4 @@
-(ns com.outpace.config
+(ns outpace.config
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]))
 

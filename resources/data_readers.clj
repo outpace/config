@@ -1,1 +1,1 @@
-{config/env com.outpace.config/read-env}
+{config/env outpace.config/read-env}
