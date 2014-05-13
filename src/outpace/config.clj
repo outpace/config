@@ -101,8 +101,10 @@
 
 (defmacro defconfig
   "Same as (def name doc-string? init?) except the var's value may be configured
-   at load-time by this library. Note that default-val will be evaluated, even
-   if there is a configured value"
+   at load-time by this library. If the ^:required metadata is used, an
+   exception will be thrown if no default nor configured value is provided.
+
+   Note that default-val will be evaluated, even if there is a configured value."
   ([name]
     `(let [var#   (def ~name)
            qname# (var-symbol var#)]
@@ -110,8 +112,10 @@
          ; keep consistent with the fact that redefining a bound var does not unbind it
          (when-not (contains? (ensure defaults) qname#)
            (alter required conj qname#)))
-       (when (present? qname#)
-         (alter-var-root var# (constantly (lookup qname#))))
+       (if (present? qname#)
+         (alter-var-root var# (constantly (lookup qname#)))
+         (when (-> var# meta :required)
+           (throw (Exception. (str "Missing required value for config var: " qname#)))))
        var#))
   ([name default-val]
     `(let [default-val# ~default-val
@@ -133,3 +137,8 @@
        (when (present? qname#)
          (alter-var-root var# (constantly (lookup qname#))))
        var#)))
+
+(defmacro defconfig!
+  "Equivalent to (defconfig ^:required ...)."
+  [name]
+  `(defconfig ~(vary-meta name assoc :required true)))
