@@ -88,7 +88,7 @@
    default values."
   (ref {}))
 
-(def required
+(def non-defaulted
   "An ref containing the set of symbols for the loaded defconfig vars that do
    not have a default value."
   (ref #{}))
@@ -103,7 +103,6 @@
   "Same as (def name doc-string? init?) except the var's value may be configured
    at load-time by this library. If the ^:required metadata is used, an
    exception will be thrown if no default nor configured value is provided.
-
    Note that default-val will be evaluated, even if there is a configured value."
   ([name]
     `(let [var#   (def ~name)
@@ -111,7 +110,7 @@
        (dosync
          ; keep consistent with the fact that redefining a bound var does not unbind it
          (when-not (contains? (ensure defaults) qname#)
-           (alter required conj qname#)))
+           (alter non-defaulted conj qname#)))
        (if (present? qname#)
          (alter-var-root var# (constantly (lookup qname#)))
          (when (-> var# meta :required)
@@ -123,7 +122,7 @@
            qname#       (var-symbol var#)]
        (dosync
          (alter defaults assoc qname# default-val#)
-         (alter required disj qname#))
+         (alter non-defaulted disj qname#))
        (when (present? qname#)
          (alter-var-root var# (constantly (lookup qname#))))
        var#))
@@ -133,7 +132,7 @@
            qname#       (var-symbol var#)]
        (dosync
          (alter defaults assoc qname# default-val#)
-         (alter required disj qname#))
+         (alter non-defaulted disj qname#))
        (when (present? qname#)
          (alter-var-root var# (constantly (lookup qname#))))
        var#)))

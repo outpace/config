@@ -65,16 +65,16 @@
 
 (defn- generate-config []
   (println "Generating config.edn")
-  (let [config-map     conf/config
-        default-map    @conf/defaults
-        required-set   @conf/required
-        config-keyset  (set (keys config-map))
-        default-keyset (set (keys default-map))
-        available-set  (set/union config-keyset default-keyset)
-        wanted-set     (set/union required-set default-keyset)
-        unbound-set    (into (sorted-set) (set/difference required-set available-set))
-        unused-set     (into (sorted-set) (set/difference available-set wanted-set))
-        used-set       (into (sorted-set) (set/intersection available-set wanted-set))]
+  (let [config-map      conf/config
+        default-map     @conf/defaults
+        nodefault-set   @conf/non-defaulted
+        config-keyset   (set (keys config-map))
+        default-keyset  (set (keys default-map))
+        available-set   (set/union config-keyset default-keyset)
+        wanted-set      (set/union nodefault-set default-keyset)
+        unbound-set     (into (sorted-set) (set/difference nodefault-set available-set))
+        unused-set      (into (sorted-set) (set/difference available-set wanted-set))
+        used-set        (into (sorted-set) (set/intersection available-set wanted-set))]
     (with-out-str
       (println "{")
       (when (seq unbound-set)
@@ -117,7 +117,7 @@
 
 (defn- generate-config-file-strict []
   (generate-config-file)
-  (when-let [unbound-set (seq (set/difference @conf/required
+  (when-let [unbound-set (seq (set/difference @conf/non-defaulted
                                               (set (keys @conf/defaults))
                                               (set (keys conf/config))))]
     (throw (Exception. (str "Generated config.edn with unbound config vars: " (pr-str (sort unbound-set)))))))
