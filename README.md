@@ -4,7 +4,7 @@
 A library for declaring configuration vars in a centralized fashion. Included tooling allows one to gather and emit all configured vars and their docstrings, default values, etc.
 
 
-## Motiviation
+## Motivation
 
 Most configuration systems rely on consumers pulling named values from something akin to a global map (cf. [environ](https://github.com/weavejester/environ)). This yields a number of negative consequences:
 
@@ -72,7 +72,7 @@ Declaring config vars is straightforward:
 (defconfig! required-var)
 ```
 
-As shown above, the `defconfig` form supports anything a regular `def` form does. Additionally, for config vars without a default value you can use `defconfig!` to throw an error if no configured value is provided. 
+As shown above, the `defconfig` form supports anything a regular `def` form does. Additionally, for config vars without a default value you can use `defconfig!` to throw an error if no configured value is provided.
 
 The `outpace.config` namespace includes the current state of the configuration, and while it can be used by code to explicitly pull config values, **this is strongly discouraged**; just use `defconfig`.
 
@@ -130,6 +130,3 @@ The first section lists commented-out config vars that do not have a default val
 The second section lists config entries that have no corresponding config var. This may happen after code change, or when a dependent library has been removed. If the config var reappears, these entries will be re-categorized after regeneration.
 
 The third section lists all config vars used by the system, and their respective values.  For reference purposes, commented-out default values will be included after the configured value.  Likewise, commented-out entries will be included when their default values are used.
-
-
-
