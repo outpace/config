@@ -133,6 +133,6 @@ The third section lists all config vars used by the system, and their respective
 
 ## License
 
-    Copyright © Outpace System, Inc.
+    Copyright © Outpace Systems, Inc.
     
     Released under the Apache License, Version 2.0
