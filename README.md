@@ -130,3 +130,9 @@ The first section lists commented-out config vars that do not have a default val
 The second section lists config entries that have no corresponding config var. This may happen after code change, or when a dependent library has been removed. If the config var reappears, these entries will be re-categorized after regeneration.
 
 The third section lists all config vars used by the system, and their respective values.  For reference purposes, commented-out default values will be included after the configured value.  Likewise, commented-out entries will be included when their default values are used.
+
+## License
+
+    Copyright © Outpace System, Inc.
+    
+    Released under the Apache License, Version 2.0
