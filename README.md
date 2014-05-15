@@ -69,10 +69,10 @@ Declaring config vars is straightforward:
 
 (defconfig ^:dynamic *rebindable-var*)
 
-(defconfig! required-var)
+(defconfig! required-var) ; or (defconfig ^:required required-var)
 ```
 
-As shown above, the `defconfig` form supports anything a regular `def` form does. Additionally, for config vars without a default value you can use `defconfig!` to throw an error if no configured value is provided.
+As shown above, the `defconfig` form supports anything a regular `def` form does. Additionally, for config vars without a default value you can use `defconfig!` or add `^:required` metadata to throw an error if no configured value is provided.
 
 The `outpace.config` namespace includes the current state of the configuration, and while it can be used by code to explicitly pull config values, **this is strongly discouraged**; just use `defconfig`.
 
