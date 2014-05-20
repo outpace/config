@@ -81,8 +81,7 @@ When deciding what config vars to declare, it may be useful to think of them as 
 ```clojure
 (ns example.s3-stuff
   (:require aws.sdk.s3))
-(defconfig! aws-creds)
-; ... code using aws-creds
+(defconfig! aws-creds)  ; configured to {:access-key "...", :secret-key "..."}
 ```
 
 ... one could instead be less coupled to the known consumer by declaring the parts separately:
@@ -93,7 +92,6 @@ When deciding what config vars to declare, it may be useful to think of them as 
 (defconfig! aws-access-key)
 (defconfig! aws-secret-key)
 (def aws-creds {:access-key aws-access-key, :secret-key aws-secret-key}
-; ... code using aws-s3-creds
 ```
 
 
