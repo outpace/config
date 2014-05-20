@@ -1,7 +1,7 @@
 # Config
 
 
-A library for declaring configuration vars in a centralized fashion. Included tooling allows one to gather and emit all configured vars and their docstrings, default values, etc.
+A library for declaring configuration vars and setting their values in a centralized fashion. Included tooling allows one to gather and emit all config vars and their docstrings, default values, etc.
 
 
 ## Motivation
@@ -75,6 +75,27 @@ Declaring config vars is straightforward:
 As shown above, the `defconfig` form supports anything a regular `def` form does. Additionally, for config vars without a default value you can use `defconfig!` or add `^:required` metadata to throw an error if no configured value is provided.
 
 The `outpace.config` namespace includes the current state of the configuration, and while it can be used by code to explicitly pull config values, **this is strongly discouraged**; just use `defconfig`.
+
+When deciding what config vars to declare, it may be useful to think of them as if they were dynamically rebindable vars, individually changeable and composable with other parts of the system.  For example, instead of declaring AWS access for the [`clj-aws-s3`](https://github.com/weavejester/clj-aws-s3) as a compound object:
+
+```clojure
+(ns example.s3-stuff
+  (:require aws.sdk.s3))
+(defconfig! aws-creds)
+; ... code using aws-creds
+```
+
+... one could instead be less coupled to the known consumer by declaring the parts separately:
+
+```clojure
+(ns example.s3-stuff
+  (:require aws.sdk.s3))
+(defconfig! aws-access-key)
+(defconfig! aws-secret-key)
+(def aws-creds {:access-key aws-access-key, :secret-key aws-secret-key}
+; ... code using aws-s3-creds
+```
+
 
 ## Generator Usage
 
