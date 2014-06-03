@@ -42,7 +42,12 @@ The configuration EDN map is provided to an application in one of two ways:
 
 If both are provided, the system property will be used.
 
-Provisioning via environment variable is intentionally unsupported, though feel free to use something like `-Dconfig.edn=$CONFIG_EDN` when starting an application.
+The `:profiles` entry of your `project.clj` file can be used to set the system property for an environment-specific configuration EDN file:
+
+```clojure
+:profiles {:test {:jvm-opts ["-Dconfig.edn=test-config.edn"]}
+           :prod {:jvm-opts ["-Dconfig.edn=prod-config.edn"]}}
+```
 
 
 ## Installation
@@ -75,24 +80,6 @@ Declaring config vars is straightforward:
 As shown above, the `defconfig` form supports anything a regular `def` form does. Additionally, for config vars without a default value you can use `defconfig!` or add `^:required` metadata to throw an error if no configured value is provided.
 
 The `outpace.config` namespace includes the current state of the configuration, and while it can be used by code to explicitly pull config values, **this is strongly discouraged**; just use `defconfig`.
-
-When deciding what config vars to declare, it may be useful to think of them as if they were dynamically rebindable vars, individually changeable and composable with other parts of the system.  For example, instead of declaring AWS access for the [`clj-aws-s3`](https://github.com/weavejester/clj-aws-s3) as a compound object:
-
-```clojure
-(ns example.s3-stuff
-  (:require aws.sdk.s3))
-(defconfig! aws-creds)  ; configured to {:access-key "...", :secret-key "..."}
-```
-
-... one could instead be less coupled to the known consumer by declaring the parts separately:
-
-```clojure
-(ns example.s3-stuff
-  (:require aws.sdk.s3))
-(defconfig! aws-access-key)
-(defconfig! aws-secret-key)
-(def aws-creds {:access-key aws-access-key, :secret-key aws-secret-key}
-```
 
 
 ## Generator Usage
