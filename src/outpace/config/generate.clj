@@ -40,8 +40,11 @@
     (let [sym-str (pr-str sym)
           val-str (pr-str val)]
       (if (split? sym-str val-str)
-        (str sym-str nl-str val-str nl-str)
-        (str sym-str " " val-str nl-str))))
+        (str (doc-str sym)
+             sym-str nl-str
+             val-str nl-str)
+        (str (doc-str sym)
+             sym-str " " val-str nl-str))))
   ([sym val default]
     (let [sym-str (pr-str sym)
           val-str (pr-str val)
