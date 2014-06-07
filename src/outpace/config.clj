@@ -1,6 +1,7 @@
 (ns outpace.config
   (:require [clojure.edn :as edn]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [clojure.set :as set]))
 
 (defprotocol Extractable
   (extract [this] "Extracts the value to be bound to a config var"))
@@ -37,20 +38,20 @@
     (throw (IllegalArgumentException. (str "Argument to #config/env must be a string: " (pr-str name))))))
 
 (defn valid-key?
-  "Returns true IFF k is acceptable as a key in config.edn, i.e., a namespaced
-   symbol."
+  "Returns true IFF k is acceptable as a key in a configuration map,
+   i.e., a namespaced symbol."
   [k]
   (and (symbol? k) (namespace k)))
 
 (defn config-source
-  "Returns the source of config.edn if provided, otherwise nil."
+  "Returns the config EDN source if provided, otherwise nil."
   []
   (or (System/getProperty "config.edn")
       (when (.exists (io/file "config.edn"))
         "config.edn")))
 
 (defn read-config
-  "Reads the config.edn map from a source acceptable to clojure.java.io/reader."
+  "Reads the config EDN map from a source acceptable to clojure.java.io/reader."
   [source]
   (let [config-map (edn/read-string {:readers *data-readers*} (slurp source))]
     (when-not (map? config-map)
@@ -91,6 +92,15 @@
   "A ref containing the set of symbols for the loaded defconfig vars that do
    not have a default value."
   (ref #{}))
+
+(defn unbound
+  "Returns the set of symbols for the defconfig vars with neither a default nor
+   configured value."
+  []
+  (dosync
+    (set/difference @non-defaulted
+                    (set (keys @defaults))
+                    (set (keys config)))))
 
 (defn var-symbol
   "Returns the namespace-qualified symbol for the var."

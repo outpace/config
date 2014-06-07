@@ -1,5 +1,5 @@
 (ns outpace.config.generate
-  "Namespace for generating a config.edn file.
+  "Namespace for generating a config EDN file.
    Example usage:
      lein run -m outpace.config.generate :strict"
   (:require [clojure.java.io :as io]
@@ -67,7 +67,6 @@
            sym-str " " def-str nl-str))))
 
 (defn- generate-config []
-  (println "Generating config.edn")
   (let [config-map      conf/config
         default-map     @conf/defaults
         nodefault-set   @conf/non-defaulted
@@ -116,18 +115,20 @@
       (println "}"))))
 
 (defn- generate-config-file []
-  (spit "config.edn" (generate-config)))
+  (let [dest (or (conf/config-source) "config.edn")]
+    (println "Generating" dest)
+    (spit dest (generate-config))))
 
 (defn- generate-config-file-strict []
   (generate-config-file)
-  (when-let [unbound-set (seq (set/difference @conf/non-defaulted
-                                              (set (keys @conf/defaults))
-                                              (set (keys conf/config))))]
-    (throw (Exception. (str "Generated config.edn with unbound config vars: " (pr-str (sort unbound-set)))))))
+  (when-let [unbound-set (seq (conf/unbound))]
+    (throw (Exception. (str "Generated a config EDN file with unbound config vars: " (pr-str (sort unbound-set)))))))
 
 (defn -main
-  "Generates a config.edn file from the defconfig entries on the classpath. The
-   following flags are supported:
+  "Generates a config EDN file from the defconfig entries on the classpath.
+   Writes to the configuration source if provided, otherwise to 'config.edn'.
+
+   The following flags are supported:
      :strict Errors on config vars with neither a default nor configured value"
   [& flags]
   (println "Loading namespaces")
