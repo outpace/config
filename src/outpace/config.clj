@@ -46,9 +46,8 @@
   "Returns the source of config.edn if provided, otherwise nil."
   []
   (or (System/getProperty "config.edn")
-      (let [file (io/file "config.edn")]
-        (when (.exists file)
-          (.getAbsolutePath file)))))
+      (when (.exists (io/file "config.edn"))
+        "config.edn")))
 
 (defn read-config
   "Reads the config.edn map from a source acceptable to clojure.java.io/reader."
