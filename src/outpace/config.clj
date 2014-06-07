@@ -84,12 +84,12 @@
       default-val)))
 
 (def defaults
-  "An ref containing the map of symbols for the loaded defconfig vars to their
+  "A ref containing the map of symbols for the loaded defconfig vars to their
    default values."
   (ref {}))
 
 (def non-defaulted
-  "An ref containing the set of symbols for the loaded defconfig vars that do
+  "A ref containing the set of symbols for the loaded defconfig vars that do
    not have a default value."
   (ref #{}))
 
