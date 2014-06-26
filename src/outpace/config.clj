@@ -122,7 +122,7 @@
            (alter non-defaulted conj qname#)))
        (if (present? qname#)
          (alter-var-root var# (constantly (lookup qname#)))
-         (when (-> var# meta :required)
+         (when (and (-> var# meta :required) (not *compile-files*))
            (throw (Exception. (str "Missing required value for config var: " qname#)))))
        var#))
   ([name default-val]
