@@ -74,7 +74,7 @@
         (is (not (contains? @non-defaulted `ddd)))
         (is (contains? @defaults `ddd)))))
   (testing "With config entry"
-    (with-redefs [config {`eee :config `fff :config `ggg :config `hhh :config}]
+    (with-redefs [config (delay {`eee :config `fff :config `ggg :config `hhh :config})]
       (testing "No default val, no docstring"
         (defconfig eee)
         (is (= :config eee)))
@@ -116,12 +116,12 @@
 
 (deftest test-defconfig!
   (testing "Preserves metadata"
-    (with-redefs [config {`req1 :config}]
+    (with-redefs [config (delay {`req1 :config})]
       (defconfig! ^{:doc "foobar"} req1)
       (is (-> #'req1 meta :required))
       (is (= "foobar" (-> #'req1 meta :doc)))))
   (testing "No error when value provided"
-    (with-redefs [config {`req2 :config}]
+    (with-redefs [config (delay {`req2 :config})]
       (defconfig! req2)
       (is (-> #'req2 meta :required))))
   (testing "Error when no value provided"
