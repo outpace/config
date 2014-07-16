@@ -61,23 +61,23 @@
     (vary-meta config-map assoc ::source source)))
 
 (def config
-  "The map of explicit configuration values."
-  (if-let [source (config-source)]
-    (read-config source)
-    {}))
+  "The delayed map of explicit configuration values."
+  (delay (if-let [source (config-source)]
+           (read-config source)
+           {})))
 
 (defn present?
   "Returns true if a configuration entry exists for the qname and, if an
    Optional value, the value is provided."
   [qname]
-  (and (contains? config qname)
-       (provided? (get config qname))))
+  (and (contains? @config qname)
+       (provided? (get @config qname))))
 
 (defn lookup
   "Returns the extracted value if the qname is present, otherwise default-val
    or nil."
   ([qname]
-    (extract (get config qname)))
+    (extract (get @config qname)))
   ([qname default-val]
     (if (present? qname)
       (lookup name)
@@ -100,7 +100,7 @@
   (dosync
     (set/difference @non-defaulted
                     (set (keys @defaults))
-                    (set (keys config)))))
+                    (set (keys @config)))))
 
 (defn var-symbol
   "Returns the namespace-qualified symbol for the var."
