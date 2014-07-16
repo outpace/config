@@ -43,8 +43,11 @@
   [k]
   (and (symbol? k) (namespace k)))
 
-(defn config-source
-  "Returns the config EDN source if provided, otherwise nil."
+(defn find-config-source
+  "Returns the first config EDN source found from:
+     - the value of the \"config.edn\" system property, if present
+     - \"config.edn\", if the file exists in the current working directory
+   otherwise nil."
   []
   (or (System/getProperty "config.edn")
       (when (.exists (io/file "config.edn"))
@@ -74,7 +77,7 @@
 
 (def config
   "The delayed map of explicit configuration values."
-  (delay (if-let [source (config-source)]
+  (delay (if-let [source (find-config-source)]
            (read-config source)
            {})))
 
