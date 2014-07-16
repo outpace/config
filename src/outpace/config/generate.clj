@@ -17,10 +17,12 @@
                           (reverse)
                           (drop-while str/blank?)
                           (reverse))
-          trim-len (->> more
-                     (map #(re-find #"^\s*" %))
-                     (map count)
-                     (apply min 0))
+          trim-len (if more
+                     (->> more
+                       (map #(re-find #"^\s*" %))
+                       (map count)
+                       (apply min))
+                     0)
           doc-lines (cons line (map #(subs % trim-len) more))]
       (apply str (interleave (repeat "; ")
                              doc-lines
