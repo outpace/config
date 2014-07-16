@@ -119,14 +119,12 @@
 (defn- generate-config-file []
   (let [dest (or (conf/config-source) "config.edn")]
     (println "Generating" dest)
-    (spit dest (generate-config))
-    (shutdown-agents)))
+    (spit dest (generate-config))))
 
 (defn- generate-config-file-strict []
   (generate-config-file)
   (when-let [unbound-set (seq (conf/unbound))]
-    (throw (Exception. (str "Generated a config EDN file with unbound config vars: " (pr-str (sort unbound-set))))))
-  (shutdown-agents))
+    (throw (Exception. (str "Generated a config EDN file with unbound config vars: " (pr-str (sort unbound-set)))))))
 
 (defn -main
   "Generates a config EDN file from the defconfig entries on the classpath.
@@ -139,4 +137,5 @@
   (let [strict? (some #{":strict"} flags)]
     (nsr/refresh :after (if strict?
                           `generate-config-file-strict
-                          `generate-config-file))))
+                          `generate-config-file))
+    (shutdown-agents)))
