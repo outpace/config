@@ -50,9 +50,19 @@
       (when (.exists (io/file "config.edn"))
         "config.edn")))
 
+(defn load-data-readers
+  "Loads the namespaces of data reader Vars whose reader tag symbol has the
+   'config' namespace."
+  []
+  (doseq [[_ var] (filter #(-> % key namespace #{"config"}) *data-readers*)
+          :let [lib-sym (-> var meta :ns .name)]]
+    (println "Loading " lib-sym)
+    (require lib-sym)))
+
 (defn read-config
   "Reads the config EDN map from a source acceptable to clojure.java.io/reader."
   [source]
+  (load-data-readers)
   (let [config-map (edn/read-string {:readers *data-readers*} (slurp source))]
     (when-not (map? config-map)
       (throw (IllegalArgumentException. (str "Configuration must be an EDN map: " (pr-str config-map)))))
