@@ -54,9 +54,11 @@
   "Loads the namespaces of data reader Vars whose reader tag symbol has the
    'config' namespace."
   []
-  (doseq [[_ var] (filter #(-> % key namespace #{"config"}) *data-readers*)
-          :let [lib-sym (-> var meta :ns .name)]]
-    (println "Loading " lib-sym)
+  (doseq [lib-sym (->> *data-readers*
+                    (filter #(-> % key namespace #{"config"}))
+                    (map #(-> % val meta :ns .name))
+                    (distinct))
+          :when (not= 'outpace.config lib-sym)]
     (require lib-sym)))
 
 (defn read-config
