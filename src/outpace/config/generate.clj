@@ -67,7 +67,7 @@
            sym-str " " def-str nl-str))))
 
 (defn- generate-config []
-  (let [config-map      conf/config
+  (let [config-map      @conf/config
         default-map     @conf/defaults
         nodefault-set   @conf/non-defaulted
         config-keyset   (set (keys config-map))
