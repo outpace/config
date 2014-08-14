@@ -1,7 +1,8 @@
 (ns outpace.config
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [clojure.set :as set]))
+            [clojure.set :as set]
+            [clojure.string :as str]))
 
 (defprotocol Extractable
   (extract [this] "Extracts the value to be bound to a config var"))
@@ -43,15 +44,41 @@
   [k]
   (and (symbol? k) (namespace k)))
 
+(defn profile-prefix [profile file-name]
+  (let [prefix (if (str/blank? profile) "" (str profile "-"))]
+    (str prefix file-name)))
+
+(defn find-config-file
+  "looks for a config file in the current working directory, precursors it with the
+   profile if one is availiable."
+  ([] (find-config-file ""))
+  ([profile]
+     (when (.exists (io/file (profile-prefix profile "config.edn")))
+       (io/file (profile-prefix profile "config.edn")))))
+
+(defn find-config-resource
+  "looks for a config file on the class path, precursors it with the
+   profile if one is availiable."
+  ([] (find-config-resource ""))
+  ([profile]
+     (let [res (io/resource (profile-prefix profile "config.edn"))]
+       (when (and res (.exists (io/file res)))
+         (io/file (io/resource (profile-prefix profile "config.edn")))))))
+
 (defn find-config-source
   "Returns the first config EDN source found from:
      - the value of the \"config.edn\" system property, if present
-     - \"config.edn\", if the file exists in the current working directory
+     - \"config.edn\", if the profile scoped file exists in the current working directory
+     - if the profile scoped file exists on root class path
+     - if config.edn exists in the working directory
+     - if config.edn exists in the root class path
    otherwise nil."
   []
   (or (System/getProperty "config.edn")
-      (when (.exists (io/file "config.edn"))
-        "config.edn")))
+      (find-config-file (System/getProperty "config-env"))
+      (find-config-resource (System/getProperty "config-env"))
+      (find-config-file)
+      (find-config-resource)))
 
 (defn load-data-readers
   "Loads the namespaces of data reader Vars whose reader tag symbol has the
