@@ -54,7 +54,7 @@ The `:profiles` entry of your `project.clj` file can be used to set the system p
 Applications and libraries wishing to declare config vars, add the following dependency in your `project.clj` file:
 
 ```clojure
-:dependencies [[com.outpace/config "0.3.0"]]
+:dependencies [[com.outpace/config "0.4.0"]]
 ```
 
 Note: it is inappropriate for libraries to include their own `config.edn` file since that is an application deployment concern. Including default values in-code (which can then be exposed by the generator) is acceptable.
