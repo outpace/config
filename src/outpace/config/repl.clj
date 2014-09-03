@@ -1,9 +1,14 @@
 (ns outpace.config.repl
-  (:require [clojure.tools.namespace.repl :as nsr]))
+  (:require [clojure.tools.namespace.repl :as nsr]
+            [outpace.config.bootstrap :as boot]))
 
 (defn reload
-  "Reloads all Clojure source files to use the specified configuration source.
-   The config-source must be a string acceptable to clojure.java.io/reader."
-  [config-source]
-  (System/setProperty "config.edn" config-source)
-  (nsr/refresh-all))
+  "Reloads all Clojure source files, reapplying possibly updated configuration.
+   If provided, config-source will be used as the configuration source, and must
+   be a value acceptable to clojure.java.io/reader."
+  ([]
+    (reload nil))
+  ([config-source]
+    (alter-var-root #'boot/explicit-config-source (constantly config-source))
+    (nsr/disable-reload! (find-ns 'outpace.config.bootstrap))
+    (nsr/refresh-all)))
