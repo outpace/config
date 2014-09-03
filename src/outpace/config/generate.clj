@@ -6,7 +6,8 @@
             [clojure.set :as set]
             [clojure.string :as str]
             [clojure.tools.namespace.repl :as nsr]
-            [outpace.config :as conf]))
+            [outpace.config :as conf]
+            [outpace.config.bootstrap :as boot]))
 
 (def ^:private nl-str (println-str))
 
@@ -117,7 +118,7 @@
       (println "}"))))
 
 (defn- generate-config-file []
-  (let [dest (or (conf/find-config-source) "config.edn")]
+  (let [dest (or (boot/find-config-source) "config.edn")]
     (println "Generating" dest)
     (spit dest (generate-config))))
 
@@ -135,7 +136,7 @@
   [& flags]
   (println "Loading namespaces")
   (let [strict? (some #{":strict"} flags)
-        config-file (conf/find-config-source)]
+        config-file (boot/find-config-source)]
     (when (and config-file (not (.exists (io/file config-file))))
       ; When an explicit config-source is provided, make sure the file exists
       ; before loading the config ns, otherwise it would be considered an error.
