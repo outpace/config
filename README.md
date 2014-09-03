@@ -35,12 +35,11 @@ com.example/aws-secret-key #config/env "AWS_SECRET_KEY"
 
 As shown above, a custom data-reader (`#config/env`) has been provided to allow for pulling in values from the environment. If the environment does not have that entry, the var will use its default value or remain unbound.
 
-The configuration EDN map is provided to an application in one of two ways:
+The configuration EDN map is provided to an application in one of the following ways:
 
 1. A `config.edn` file in the current working directory.
 2. A `config.edn` java system property (e.g., a command line arg `-Dconfig.edn=...`). The value can be any string consumable by [`clojure.java.io/reader`](http://clojure.github.io/clojure/clojure.java.io-api.html#clojure.java.io/reader).
-
-If both are provided, the system property will be used.
+3. Setting `outpace.config.bootstrap/explicit-config-source` to any non-nil value consumable by [`clojure.java.io/reader`](http://clojure.github.io/clojure/clojure.java.io-api.html#clojure.java.io/reader).
 
 The `:profiles` entry of your `project.clj` file can be used to set the system property for an environment-specific configuration EDN file:
 
