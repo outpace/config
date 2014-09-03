@@ -1,7 +1,7 @@
 (ns outpace.config
   (:require [clojure.edn :as edn]
-            [clojure.java.io :as io]
-            [clojure.set :as set]))
+            [clojure.set :as set]
+            [outpace.config.bootstrap :refer [find-config-source]]))
 
 (defprotocol Extractable
   (extract [this] "Extracts the value to be bound to a config var"))
@@ -42,16 +42,6 @@
    i.e., a namespaced symbol."
   [k]
   (and (symbol? k) (namespace k)))
-
-(defn find-config-source
-  "Returns the first config EDN source found from:
-     - the value of the \"config.edn\" system property, if present
-     - \"config.edn\", if the file exists in the current working directory
-   otherwise nil."
-  []
-  (or (System/getProperty "config.edn")
-      (when (.exists (io/file "config.edn"))
-        "config.edn")))
 
 (defn load-data-readers
   "Loads the namespaces of data reader Vars whose reader tag symbol has the
