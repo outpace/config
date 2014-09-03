@@ -136,6 +136,20 @@ The second section lists config entries that have no corresponding config var. T
 
 The third section lists all config vars used by the system, and their respective values.  For reference purposes, commented-out default values will be included after the configured value.  Likewise, commented-out entries will be included when their default values are used.
 
+## Change Log
+
+### v0.4.0
+
+- Add ability to set the config-source explicitly in-code. Allows custom code to set the config-source when neither providing a local `config.edn` file nor setting a system-property can be used (e.g., webapps).
+
+### v0.3.0
+
+- Add support for using custom data-readers when loading the config EDN. Tags with a `config` namespace (e.g., `#config/foo`) will have the corresponding data-reader function's namespace automatically loaded.
+
+### v0.2.0
+
+- Add in-repl ability to reload with a different config.
+
 ## License
 
     Copyright © Outpace Systems, Inc.
