@@ -49,7 +49,7 @@
   []
   (doseq [lib-sym (->> *data-readers*
                     (filter #(-> % key namespace #{"config"}))
-                    (map #(-> % val meta :ns .name))
+                    (map #(-> % val meta ^clojure.lang.Namespace (:ns) .name))
                     (distinct))
           :when (not= 'outpace.config lib-sym)]
     (require lib-sym)))
