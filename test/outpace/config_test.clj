@@ -154,7 +154,7 @@
     (testing "Exception message contains error message."
       (is (thrown-with-msg? ExceptionInfo #"boom" (validate 5 'foo/bar [even? "boom"]))))))
 
-(deftest test-defconfig-assert
+(deftest test-defconfig-validate
   (testing "without config-value"
     (testing "without default-value"
       (testing "validate not applied when no value provided"
