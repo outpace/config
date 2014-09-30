@@ -2,6 +2,15 @@
   (:use clojure.test
         outpace.config))
 
+(defn unmap-non-fn-vars [ns]
+  (doseq [[sym var] (ns-interns ns)]
+    (when-not (fn? @var)
+      (ns-unmap ns sym))))
+
+(use-fixtures :each (fn [f]
+                      (unmap-non-fn-vars *ns*)
+                      (f)))
+
 (deftest test-EnvVar
   (let [name     "name"
         value    "value"
@@ -110,9 +119,7 @@
           (is (nil? (:doc (meta #'hhh))))
           (is (= :config hhh))
           (is (not (contains? @non-defaulted `hhh)))
-          (is (= :default3 (@defaults `hhh)))))))
-  (doseq [v [#'aaa #'bbb #'ccc #'ddd #'eee #'fff #'ggg #'hhh]]
-    (.unbindRoot v)))
+          (is (= :default3 (@defaults `hhh))))))))
 
 (deftest test-defconfig!
   (testing "Preserves metadata"
