@@ -1,4 +1,5 @@
 (ns outpace.config-test
+  (:import clojure.lang.ExceptionInfo)
   (:use clojure.test
         outpace.config))
 
@@ -133,3 +134,47 @@
       (is (-> #'req2 meta :required))))
   (testing "Error when no value provided"
     (is (thrown? Exception (defconfig! req3)))))
+
+(deftest test-validate
+  (let [validate #'outpace.config/validate]
+    (testing "Tests must be a vector"
+      (is (thrown? AssertionError (validate 5 'foo {}))))
+    (testing "Tests vector must be even"
+      (is (thrown? AssertionError (validate 5 'foo [even?]))))
+    (testing "Tests vector must be alternating fns"
+      (is (thrown? AssertionError (validate 5 'foo [even? "a" 5 "b"]))))
+    (testing "Tests vector must be alternating strings"
+      (is (thrown? AssertionError (validate 5 'foo [even? "a" even? 5]))))
+    (testing "No error when no tests"
+      (is (nil? (validate 5 'foo []))))
+    (testing "Exceptions in order of declaration"
+      (is (thrown-with-msg? ExceptionInfo #"bar" (validate 5 'foo [odd? "foo" even? "bar" even? "baz"]))))
+    (testing "Exception message contains qualified var name."
+      (is (thrown-with-msg? ExceptionInfo #"foo/bar" (validate 5 'foo/bar [even? "boom"]))))
+    (testing "Exception message contains error message."
+      (is (thrown-with-msg? ExceptionInfo #"boom" (validate 5 'foo/bar [even? "boom"]))))))
+
+(deftest test-defconfig-assert
+  (testing "without config-value"
+    (testing "without default-value"
+      (testing "validate not applied when no value provided"
+        (is (defconfig ^{:validate [(constantly false) "should not happen"]} foo))))
+    (testing "with default-value"
+      (testing "no exception when default-value is valid"
+        (is (defconfig ^{:validate [even? "boom"]} foo 4)))
+      (testing "exception when default-value is invalid"
+         (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo 5))))))
+  (with-redefs [config (delay {`foo 5})]
+    (testing "with config-value"
+      (testing "without default-value"
+       (testing "no exception when configured value is valid"
+         (is (defconfig ^{:validate [odd? "boom"]} foo)))
+       (testing "exception when configured value is invalid"
+         (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo)))))
+      (testing "with default-value"
+        (testing "no exception when configured value is valid, but default isn't"
+         (is (defconfig ^{:validate [odd? "boom"]} foo 4)))
+        (testing "exception when configured value is invalid, but default isn't"
+          (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo 4))))))))
+
+
