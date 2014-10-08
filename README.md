@@ -103,7 +103,7 @@ Alternately, one can just invoke `lein config` by adding the following to `proje
 :aliases {"config" ["run" "-m" "outpace.config.generate"]}
 ```
 
-The generator can take an optional `:strict` flag (e.g., `lein config :strict`) that will result in an exception after file generation if there are any config vars with neither a default value nor configured value.
+The generator can take an optional `:strict` flag (e.g., `lein config :strict`) that will result in an exception after file generation if there are any config vars with neither a default value nor configured value. This can be used to provide feedback to automated build systems.
 
 The following is an example of a generated `config.edn` file:
 
