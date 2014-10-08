@@ -3,6 +3,7 @@
    Example usage:
      lein run -m outpace.config.generate :strict"
   (:require [clojure.java.io :as io]
+            [clojure.pprint :refer [pprint]]
             [clojure.set :as set]
             [clojure.string :as str]
             [clojure.tools.namespace.repl :as nsr]
@@ -30,6 +31,11 @@
                              (repeat nl-str))))
     ""))
 
+(defn pretty-str [val]
+  (str/trim-newline
+    (with-out-str
+      (pprint val))))
+
 (defn- unbound-str [sym]
   (str (doc-str sym)
        "#_" (pr-str sym) nl-str))
@@ -41,31 +47,44 @@
 (defn- entry-str
   ([sym val]
     (let [sym-str (pr-str sym)
-          val-str (pr-str val)]
+          val-str (pr-str val)
+          val-pty (pretty-str val)]
       (if (split? sym-str val-str)
         (str (doc-str sym)
              sym-str nl-str
-             val-str nl-str)
+             (if (split? val-str)
+               val-pty
+               val-str) nl-str)
         (str (doc-str sym)
              sym-str " " val-str nl-str))))
   ([sym val default]
     (let [sym-str (pr-str sym)
           val-str (pr-str val)
-          def-str (str "#_" (pr-str default))]
+          def-str (str "#_" (pr-str default))
+          val-pty (pretty-str val)
+          def-pty (str "#_" (pretty-str default))]
       (if (split? sym-str val-str def-str)
         (str (doc-str sym)
              sym-str nl-str
-             val-str nl-str
-             def-str nl-str)
+             (if (split? val-str)
+               val-pty
+               val-str) nl-str
+             (if (split? def-str)
+               def-pty
+               def-str) nl-str)
         (str (doc-str sym)
              sym-str " " val-str " " def-str nl-str)))))
 
 (defn- default-str [sym default]
   (let [sym-str (str "#_" (pr-str sym))
-        def-str (str "#_" (pr-str default))]
+        def-str (str "#_" (pr-str default))
+        def-pty (str "#_" (pretty-str default))]
     (if (split? sym-str def-str)
       (str (doc-str sym)
-           sym-str nl-str def-str nl-str)
+           sym-str nl-str
+           (if (split? def-str)
+             def-pty
+             def-str) nl-str)
       (str (doc-str sym)
            sym-str " " def-str nl-str))))
 
