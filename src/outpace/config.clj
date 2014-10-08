@@ -114,10 +114,10 @@
           (-> v meta :name name)))
 
 (defn- validate [val var-sym validate-vec]
-  (assert (vector? validate-vec) ":assert value must be a vector")
-  (assert (even? (count validate-vec)) ":assert vector requires an even number of forms")
-  (assert (every? ifn? (take-nth 2 validate-vec)) ":assert vector requires alternating functions")
-  (assert (every? string? (take-nth 2 (next validate-vec))) ":assert vector requires alternating message strings")
+  (assert (vector? validate-vec) ":validate value must be a vector")
+  (assert (even? (count validate-vec)) ":validate vector requires an even number of forms")
+  (assert (every? ifn? (take-nth 2 validate-vec)) ":validate vector requires alternating functions")
+  (assert (every? string? (take-nth 2 (next validate-vec))) ":validate vector requires alternating message strings")
   (doseq [[pred msg] (partition 2 validate-vec)]
     (when-not (pred val)
       (throw (ex-info (format "Config var %s failed validation: %s. See ex-data." var-sym msg)
