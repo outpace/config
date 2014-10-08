@@ -73,10 +73,16 @@ Declaring config vars is straightforward:
 
 (defconfig ^:dynamic *rebindable-var*)
 
-(defconfig! required-var) ; or (defconfig ^:required required-var)
+(defconfig ^:required required-var)
+
+(defconfig ^{:validate [number? "Must be a number."
+                        even?   "Must be even."]}
+           an-even-number)
 ```
 
-As shown above, the `defconfig` form supports anything a regular `def` form does. Additionally, for config vars without a default value you can use `defconfig!` or add `^:required` metadata to throw an error if no configured value is provided.
+As shown above, the `defconfig` form supports anything a regular `def` form does, as well as the following metadata:
+- `:required` When true, an exception will be thrown if no default nor configured value is provided. See also `defconfig!`
+- `:validate` A vector of alternating single-arity predicates and error messages. After a value is set on the var, an exception will be thrown when a predicate, passed the set value, yields false.
 
 The `outpace.config` namespace includes the current state of the configuration, and while it can be used by code to explicitly pull config values, **this is strongly discouraged**; just use `defconfig`.
 
@@ -137,6 +143,11 @@ The second section lists config entries that have no corresponding config var. T
 The third section lists all config vars used by the system, and their respective values.  For reference purposes, commented-out default values will be included after the configured value.  Likewise, commented-out entries will be included when their default values are used.
 
 ## Change Log
+
+### v0.5.0
+
+- Add `:validate` metadata support to `defconfig`.
+- Generator now pretty-prints wide values.
 
 ### v0.4.0
 
