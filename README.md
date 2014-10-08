@@ -91,7 +91,7 @@ The `outpace.config` namespace includes the current state of the configuration, 
 
 The `outpace.config.generate` namespace exists to generate a `config.edn` file containing everything one may need to know about the state of the config vars in the application and its dependent namespaces. If a `config.edn` file is already present, its contents will be loaded, and thus preserved by the replacing file.
 
-To generate a `config.edn` file, invoke the following the the same directory as your `project.clj` file:
+To generate a `config.edn` file, invoke the following in the same directory as your `project.clj` file:
 
 ```bash
 lein run -m outpace.config.generate
