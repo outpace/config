@@ -55,7 +55,7 @@
       (if (.exists f)
         (->FileVar path (slurp f) true)
         (->FileVar path nil false)))
-    (throw (IllegalArgumentException. (str "Argument to #config/file must be a string: " (pr-str name))))))
+    (throw (IllegalArgumentException. (str "Argument to #config/file must be a string: " (pr-str path))))))
 
 (defn valid-key?
   "Returns true IFF k is acceptable as a key in a configuration map,
