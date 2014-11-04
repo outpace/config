@@ -30,10 +30,11 @@ Configuration is provided in an [EDN](http://edn-format.org) map of namespaced s
 com.example/greeting       "Hello World!"
 com.example/tree           {:id 1, :children #{{:id 2} {:id 3}}}
 com.example/aws-secret-key #config/env "AWS_SECRET_KEY"
+com.example/db-password    #config/file "db-password.txt"
 }
 ```
 
-As shown above, a custom data-reader (`#config/env`) has been provided to allow for pulling in values from the environment. If the environment does not have that entry, the var will use its default value or remain unbound.
+As shown above, custom data-reader tags can be used to [pull values from external sources](#external-config-values).
 
 The configuration EDN map is provided to an application in one of the following ways:
 
@@ -85,6 +86,18 @@ As shown above, the `defconfig` form supports anything a regular `def` form does
 - `:validate` A vector of alternating single-arity predicates and error messages. After a value is set on the var, an exception will be thrown when a predicate, passed the set value, yields false.
 
 The `outpace.config` namespace includes the current state of the configuration, and while it can be used by code to explicitly pull config values, **this is strongly discouraged**; just use `defconfig`.
+
+
+## External Config Values
+
+Recognizing that it is not always appropriate to provide configuration values directly in the config file, custom data-readers can be used to instead convert a tagged literal in the config to an externally-provided value.  This allows one to still grasp the full configuration of an app, and at least know where a value will come from, if not the value itself.
+
+The provided data-readers' tags are:
+
+- `#config/env` Tags a string, interpreted as the name of an environment variable, and yields the string value of the environment variable. If the environment does not have that entry, the var will use its default value or remain unbound. 
+- `#config/file` Tags a string, interpreted as a path to a file, and yields the string contents of the file. If the file does not exist, the var will use its default value or remain unbound.
+
+[Custom data-readers](http://clojure.org/reader#The Reader--Tagged Literals) whose tag namespace is `config` will be automatically loaded during config initialization. See `outpace.config/read-env` for an example of how to properly implement a custom data-reader.
 
 
 ## Generator Usage
