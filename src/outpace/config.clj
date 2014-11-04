@@ -57,6 +57,25 @@
         (->FileVar path nil false)))
     (throw (IllegalArgumentException. (str "Argument to #config/file must be a string: " (pr-str path))))))
 
+(defrecord EdnVar [name value exists?]
+  Extractable
+  (extract [_] value)
+  Optional
+  (provided? [_] exists?))
+
+(defmethod print-method EdnVar [^EdnVar evar ^java.io.Writer w]
+  (.write w (str "#config/edn " (pr-str (.name evar)))))
+
+(defn read-edn
+  "Returns an EdnVar deserialized from the file specified by string path."
+  [path]
+  (if (and path (string? path))
+    (let [f (io/file path)]
+      (if (.exists f)
+        (->EdnVar path (edn/read-string (slurp f)) true)
+        (->EdnVar path nil false)))
+    (throw (IllegalArgumentException. (str "Argument to #config/edn must be a string: " (pr-str path))))))
+
 (defn valid-key?
   "Returns true IFF k is acceptable as a key in a configuration map,
    i.e., a namespaced symbol."
@@ -135,7 +154,7 @@
 
 (defn validate
   "Throws an ex-info if, for any predicate in validate-vec, (pred val) is false.
-   
+
    The validate-vec must be a vector of alternating single-arity predicate fns
    and associated error messages.
    Example: [number? \"must be a number\" even? \"must be even\"]
