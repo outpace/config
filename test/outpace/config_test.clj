@@ -136,23 +136,22 @@
     (is (thrown? Exception (defconfig! req3)))))
 
 (deftest test-validate
-  (let [validate #'outpace.config/validate]
-    (testing "Tests must be a vector"
-      (is (thrown? AssertionError (validate 5 'foo {}))))
-    (testing "Tests vector must be even"
-      (is (thrown? AssertionError (validate 5 'foo [even?]))))
-    (testing "Tests vector must be alternating fns"
-      (is (thrown? AssertionError (validate 5 'foo [even? "a" 5 "b"]))))
-    (testing "Tests vector must be alternating strings"
-      (is (thrown? AssertionError (validate 5 'foo [even? "a" even? 5]))))
-    (testing "No error when no tests"
-      (is (nil? (validate 5 'foo []))))
-    (testing "Exceptions in order of declaration"
-      (is (thrown-with-msg? ExceptionInfo #"bar" (validate 5 'foo [odd? "foo" even? "bar" even? "baz"]))))
-    (testing "Exception message contains qualified var name."
-      (is (thrown-with-msg? ExceptionInfo #"foo/bar" (validate 5 'foo/bar [even? "boom"]))))
-    (testing "Exception message contains error message."
-      (is (thrown-with-msg? ExceptionInfo #"boom" (validate 5 'foo/bar [even? "boom"]))))))
+  (testing "Tests must be a vector"
+    (is (thrown? AssertionError (validate 5 'foo {}))))
+  (testing "Tests vector must be even"
+    (is (thrown? AssertionError (validate 5 'foo [even?]))))
+  (testing "Tests vector must be alternating fns"
+    (is (thrown? AssertionError (validate 5 'foo [even? "a" 5 "b"]))))
+  (testing "Tests vector must be alternating strings"
+    (is (thrown? AssertionError (validate 5 'foo [even? "a" even? 5]))))
+  (testing "No error when no tests"
+    (is (nil? (validate 5 'foo []))))
+  (testing "Exceptions in order of declaration"
+    (is (thrown-with-msg? ExceptionInfo #"bar" (validate 5 'foo [odd? "foo" even? "bar" even? "baz"]))))
+  (testing "Exception message contains qualified var name."
+    (is (thrown-with-msg? ExceptionInfo #"foo/bar" (validate 5 'foo/bar [even? "boom"]))))
+  (testing "Exception message contains error message."
+    (is (thrown-with-msg? ExceptionInfo #"boom" (validate 5 'foo/bar [even? "boom"])))))
 
 (deftest test-defconfig-validate
   (testing "without config-value"
