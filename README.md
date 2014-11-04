@@ -144,6 +144,9 @@ The third section lists all config vars used by the system, and their respective
 
 ## Change Log
 
+### v0.6.0
+- Add `#config/file` data-reader set a config var's value to the contents of a file.
+
 ### v0.5.0
 
 - Add `:validate` metadata support to `defconfig`.

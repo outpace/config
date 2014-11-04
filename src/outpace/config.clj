@@ -1,5 +1,6 @@
 (ns outpace.config
   (:require [clojure.edn :as edn]
+            [clojure.java.io :as io]
             [clojure.set :as set]
             [outpace.config.bootstrap :refer [find-config-source]]))
 
@@ -36,6 +37,25 @@
   (if (and name (string? name))
     (->EnvVar name (System/getenv name) (contains? (System/getenv) name))
     (throw (IllegalArgumentException. (str "Argument to #config/env must be a string: " (pr-str name))))))
+
+(defrecord FileVar [name value exists?]
+  Extractable
+  (extract [_] value)
+  Optional
+  (provided? [_] exists?))
+
+(defmethod print-method FileVar [^FileVar fvar ^java.io.Writer w]
+  (.write w (str "#config/file " (pr-str (.name fvar)))))
+
+(defn read-file
+  "Returns a FileVar identified by the specified string path."
+  [path]
+  (if (and path (string? path))
+    (let [f (io/file path)]
+      (if (.exists f)
+        (->FileVar path (slurp f) true)
+        (->FileVar path nil false)))
+    (throw (IllegalArgumentException. (str "Argument to #config/file must be a string: " (pr-str name))))))
 
 (defn valid-key?
   "Returns true IFF k is acceptable as a key in a configuration map,
