@@ -113,7 +113,19 @@
   (symbol (-> v meta :ns ns-name name)
           (-> v meta :name name)))
 
-(defn- validate [val var-sym validate-vec]
+(defn validate
+  "Throws an ex-info if, for any predicate in validate-vec, (pred val) is false.
+   
+   The validate-vec must be a vector of alternating single-arity predicate fns
+   and associated error messages.
+   Example: [number? \"must be a number\" even? \"must be even\"]
+
+  The ex-info's ex-data map will contain the following entries:
+    :pred - the predicate fn that failed
+    :msg  - the associated error message
+    :sym  - the fully-qualified symbol of the config var
+    :val  - the value set on the config var"
+  [val var-sym validate-vec]
   (assert (vector? validate-vec) ":validate value must be a vector")
   (assert (even? (count validate-vec)) ":validate vector requires an even number of forms")
   (assert (every? ifn? (take-nth 2 validate-vec)) ":validate vector requires alternating functions")
@@ -126,7 +138,6 @@
                        :sym  var-sym
                        :val  val})))))
 
-(let [validate validate]
 (defmacro defconfig
   "Same as (def name doc-string? init?) except the var's value may be configured
    at load-time by this library.
@@ -151,7 +162,7 @@
          (when (and (-> var# meta :required) (not *compile-files*))
            (throw (Exception. (str "Missing required value for config var: " qname#)))))
        (when-let [validate# (and (bound? var#) (not *compile-files*) (-> var# meta :validate))]
-         (~validate @var# qname# validate#))
+         (validate @var# qname# validate#))
        var#))
   ([name default-val]
     `(let [default-val# ~default-val
@@ -163,7 +174,7 @@
        (when (present? qname#)
          (alter-var-root var# (constantly (lookup qname#))))
        (when-let [validate# (and (not *compile-files*) (-> var# meta :validate))]
-         (~validate @var# qname# validate#))
+         (validate @var# qname# validate#))
        var#))
   ([name doc default-val]
     `(let [default-val# ~default-val
@@ -175,9 +186,8 @@
        (when (present? qname#)
          (alter-var-root var# (constantly (lookup qname#))))
        (when-let [validate# (and (not *compile-files*) (-> var# meta :validate))]
-         (~validate @var# qname# validate#))
+         (validate @var# qname# validate#))
        var#)))
-)
 
 (defmacro defconfig!
   "Equivalent to (defconfig ^:required ...)."
