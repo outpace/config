@@ -67,14 +67,12 @@
   (.write w (str "#config/edn " (pr-str (.name evar)))))
 
 (defn read-edn
-  "Returns an EdnVar from an Extractable string value."
+  "Returns an EdnVar from a string value. Can be composed with other readers."
   [e]
-  (if (and (satisfies? Extractable e)
-           (satisfies? Optional e))
-    (if (provided? e)
-      (->EdnVar e (edn/read-string (extract e)) true)
-      (->EdnVar e nil false))
-    (throw (IllegalArgumentException. (str "Argument to #config/edn must be an Extractable (compose it with another reader such as #config/file)" (pr-str e))))))
+  (let [s (extract e)]
+    (if (or (nil? s) (string? s))
+      (->EdnVar e (edn/read-string s) (provided? e))
+      (throw (IllegalArgumentException. (str "Argument to #config/edn must be a string: " (pr-str e)))))))
 
 (defn valid-key?
   "Returns true IFF k is acceptable as a key in a configuration map,
