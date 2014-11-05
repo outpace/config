@@ -4,6 +4,21 @@
 A library for declaring configuration vars and setting their values in a centralized fashion. Included tooling allows one to gather and emit all config vars and their docstrings, default values, etc.
 
 
+## Installation
+
+Applications and libraries wishing to declare config vars should add the following to the `project.clj` file:
+
+```clojure
+:dependencies [[com.outpace/config "0.7.0"]]
+```
+
+Applications may also include the following to ease [generating a `config.edn` file](#generator-usage):
+
+```clojure
+:aliases {"config" ["run" "-m" "outpace.config.generate"]}
+```
+
+
 ## Motivation
 
 Most configuration systems rely on consumers pulling named values from something akin to a global map (cf. [environ](https://github.com/weavejester/environ)). This yields a number of negative consequences:
@@ -49,17 +64,6 @@ The `:profiles` entry of your `project.clj` file can be used to set the system p
 :profiles {:test {:jvm-opts ["-Dconfig.edn=test-config.edn"]}
            :prod {:jvm-opts ["-Dconfig.edn=prod-config.edn"]}}
 ```
-
-
-## Installation
-
-Applications and libraries wishing to declare config vars, add the following dependency in your `project.clj` file:
-
-```clojure
-:dependencies [[com.outpace/config "0.5.0"]]
-```
-
-Note: it is inappropriate for libraries to include their own `config.edn` file since that is an application deployment concern. Including default values in-code (which can then be exposed by the generator) is acceptable.
 
 
 ## Config Usage
