@@ -67,14 +67,14 @@
   (.write w (str "#config/edn " (pr-str (.name evar)))))
 
 (defn read-edn
-  "Returns an EdnVar deserialized from the file specified by string path."
-  [path]
-  (if (and path (string? path))
-    (let [f (io/file path)]
-      (if (.exists f)
-        (->EdnVar path (edn/read-string (slurp f)) true)
-        (->EdnVar path nil false)))
-    (throw (IllegalArgumentException. (str "Argument to #config/edn must be a string: " (pr-str path))))))
+  "Returns an EdnVar from an Extractable string value."
+  [e]
+  (if (and (satisfies? Extractable e)
+           (satisfies? Optional e))
+    (if (provided? e)
+      (->EdnVar e (edn/read-string (extract e)) true)
+      (->EdnVar e nil false))
+    (throw (IllegalArgumentException. (str "Argument to #config/edn must be an Extractable (compose it with another reader such as #config/file)" (pr-str e))))))
 
 (defn valid-key?
   "Returns true IFF k is acceptable as a key in a configuration map,
