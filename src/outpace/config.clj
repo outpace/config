@@ -57,14 +57,14 @@
         (->FileVar path nil false)))
     (throw (IllegalArgumentException. (str "Argument to #config/file must be a string: " (pr-str path))))))
 
-(defrecord EdnVar [name value exists?]
+(defrecord EdnVar [source input orig]
   Extractable
-  (extract [_] value)
+  (extract [_] input)
   Optional
-  (provided? [_] exists?))
+  (provided? [_] orig))
 
 (defmethod print-method EdnVar [^EdnVar evar ^java.io.Writer w]
-  (.write w (str "#config/edn " (pr-str (.name evar)))))
+  (.write w (str "#config/edn " (pr-str (.source evar)))))
 
 (defn read-edn
   "Returns an EdnVar from a string value. Can be composed with other readers."
