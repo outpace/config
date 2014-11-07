@@ -12,30 +12,30 @@
                       (unmap-non-fn-vars *ns*)
                       (f)))
 
-(deftest test-EnvVar
+(deftest test-EnvVal
   (let [name     "name"
         value    "value"
         defined? true
-        ev       (->EnvVar name value defined?)]
-    (testing "EnvVar fields"
+        ev       (->EnvVal name value defined?)]
+    (testing "EnvVal fields"
       (is (= name (:name ev)))
       (is (= value (:value ev)))
       (is (= defined? (:defined? ev))))
-    (testing "EnvVar protocol implementations"
+    (testing "EnvVal protocol implementations"
       (is (= value (extract ev)))
       (is (= defined? (provided? ev))))
-    (testing "EnvVar edn-printing"
+    (testing "EnvVal edn-printing"
       (is (= (str "#config/env " (pr-str name)) (pr-str ev))))))
 
 (deftest test-read-env
   (when-let [name (first (keys (java.lang.System/getenv)))]
-    (testing "EnvVar for extant environment variable."
+    (testing "EnvVal for extant environment variable."
       (let [value (System/getenv name)
             ev    (read-env name)]
         (is (= name (:name ev)))
         (is (= value (:value ev)))
         (is (:defined? ev))))
-    (testing "EnvVar for missing environment variable."
+    (testing "EnvVal for missing environment variable."
       (let [ks   (set (keys (System/getenv)))
             name (first (remove ks (map str (range))))
             ev   (read-env name)]

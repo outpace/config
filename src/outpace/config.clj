@@ -22,57 +22,57 @@
   Object
   (provided? [_] true))
 
-(defrecord EnvVar [name value defined?]
+(defrecord EnvVal [name value defined?]
   Extractable
   (extract [_] value)
   Optional
   (provided? [_] defined?))
 
-(defmethod print-method EnvVar [^EnvVar evar ^java.io.Writer w]
-  (.write w (str "#config/env " (pr-str (.name evar)))))
+(defmethod print-method EnvVal [^EnvVal ev ^java.io.Writer w]
+  (.write w (str "#config/env " (pr-str (.name ev)))))
 
 (defn read-env
-  "Returns an EnvVar identified by the specified string name."
+  "Returns an EnvVal identified by the specified string name."
   [name]
   (if (and name (string? name))
-    (->EnvVar name (System/getenv name) (contains? (System/getenv) name))
+    (->EnvVal name (System/getenv name) (contains? (System/getenv) name))
     (throw (IllegalArgumentException. (str "Argument to #config/env must be a string: " (pr-str name))))))
 
-(defrecord FileVar [name value exists?]
+(defrecord FileVal [path contents exists?]
   Extractable
-  (extract [_] value)
+  (extract [_] contents)
   Optional
   (provided? [_] exists?))
 
-(defmethod print-method FileVar [^FileVar fvar ^java.io.Writer w]
-  (.write w (str "#config/file " (pr-str (.name fvar)))))
+(defmethod print-method FileVal [^FileVal fv ^java.io.Writer w]
+  (.write w (str "#config/file " (pr-str (.path fv)))))
 
 (defn read-file
-  "Returns a FileVar identified by the specified string path."
+  "Returns a FileVal identified by the specified string path."
   [path]
   (if (and path (string? path))
     (let [f (io/file path)]
       (if (.exists f)
-        (->FileVar path (slurp f) true)
-        (->FileVar path nil false)))
+        (->FileVal path (slurp f) true)
+        (->FileVal path nil false)))
     (throw (IllegalArgumentException. (str "Argument to #config/file must be a string: " (pr-str path))))))
 
-(defrecord EdnVar [source input orig]
+(defrecord EdnVal [source value source-provided?]
   Extractable
-  (extract [_] input)
+  (extract [_] value)
   Optional
-  (provided? [_] orig))
+  (provided? [_] source-provided?))
 
-(defmethod print-method EdnVar [^EdnVar evar ^java.io.Writer w]
-  (.write w (str "#config/edn " (pr-str (.source evar)))))
+(defmethod print-method EdnVal [^EdnVal ev ^java.io.Writer w]
+  (.write w (str "#config/edn " (pr-str (.source ev)))))
 
 (defn read-edn
-  "Returns an EdnVar from a string value. Can be composed with other readers."
-  [e]
-  (let [s (extract e)]
+  "Returns an EdnVal from a string value. Can be composed with other readers."
+  [source]
+  (let [s (extract source)]
     (if (or (nil? s) (string? s))
-      (->EdnVar e (edn/read-string s) (provided? e))
-      (throw (IllegalArgumentException. (str "Argument to #config/edn must be a string: " (pr-str e)))))))
+      (->EdnVal source (edn/read-string s) (provided? source))
+      (throw (IllegalArgumentException. (str "Argument to #config/edn must be a string: " (pr-str source)))))))
 
 (defn valid-key?
   "Returns true IFF k is acceptable as a key in a configuration map,
