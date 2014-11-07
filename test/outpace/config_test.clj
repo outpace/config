@@ -1,7 +1,11 @@
 (ns outpace.config-test
-  (:import clojure.lang.ExceptionInfo)
   (:use clojure.test
-        outpace.config))
+        outpace.config)
+  (:import clojure.lang.ExceptionInfo
+           java.io.File
+           outpace.config.EdnVal
+           outpace.config.EnvVal
+           outpace.config.FileVal))
 
 (defn unmap-non-fn-vars [ns]
   (doseq [[sym var] (ns-interns ns)]
@@ -28,20 +32,104 @@
       (is (= (str "#config/env " (pr-str name)) (pr-str ev))))))
 
 (deftest test-read-env
-  (when-let [name (first (keys (java.lang.System/getenv)))]
-    (testing "EnvVal for extant environment variable."
-      (let [value (System/getenv name)
-            ev    (read-env name)]
-        (is (= name (:name ev)))
-        (is (= value (:value ev)))
-        (is (:defined? ev))))
-    (testing "EnvVal for missing environment variable."
-      (let [ks   (set (keys (System/getenv)))
-            name (first (remove ks (map str (range))))
-            ev   (read-env name)]
-        (is (= name (:name ev)))
-        (is (nil? (:value ev)))
-        (is (not (:defined? ev)))))))
+  (testing "EnvVal for extant environment variable."
+    (let [name  (first (keys (java.lang.System/getenv)))
+          _     (assert name "Cannot test read-env without environment variables")
+          value (System/getenv name)
+          ev    (read-env name)]
+      (is (instance? EnvVal ev))
+      (is (= value (extract ev)))
+      (is (provided? ev))))
+  (testing "EnvVal for missing environment variable."
+    (let [ks   (set (keys (System/getenv)))
+          name (first (remove ks (map str (range))))
+          ev   (read-env name)]
+      (is (instance? EnvVal ev))
+      (is (nil? (extract ev)))
+      (is (not (provided? ev))))))
+
+(deftest test-FileVal
+  (let [path     "path"
+        contents "contents"
+        exists?  true
+        fv       (->FileVal path contents exists?)]
+    (testing "FileVal fields"
+      (is (= path (:path fv)))
+      (is (= contents (:contents fv)))
+      (is (= exists? (:exists? fv))))
+    (testing "FileVal protocol implementations"
+      (is (= contents (extract fv)))
+      (is (= exists? (provided? fv))))
+    (testing "FileVal edn-printing"
+      (is (= (str "#config/file " (pr-str path)) (pr-str fv))))))
+
+(deftest test-read-file
+  (let [file     (File/createTempFile "test-read-file" ".txt")
+        path     (.getPath file)
+        contents "contents"]
+    (spit file contents)
+    (testing "FileVal for extant file."
+     (let [fv (read-file path)]
+       (is (instance? FileVal fv))
+       (is (= contents (extract fv)))
+       (is (provided? fv))))
+    (.delete file)
+    (testing "FileVal for missing file."
+      (let [fv (read-file path)]
+        (is (instance? FileVal fv))
+        (is (nil? (extract fv)))
+        (is (not (provided? fv)))))))
+
+(deftest test-EdnVal
+  (let [source           "{}"
+        value            {}
+        source-provided? true
+        ev               (->EdnVal source value source-provided?)]
+    (testing "EdnVal fields"
+      (is (= source (:source ev)))
+      (is (= value (:value ev)))
+      (is (= source-provided? (:source-provided? ev))))
+    (testing "EdnVal protocol implementations"
+      (is (= value (extract ev)))
+      (is (= source-provided? (provided? ev))))
+    (testing "EdnVal edn-printing"
+      (is (= (str "#config/edn " (pr-str source)) (pr-str ev))))))
+
+(deftest test-read-edn
+  (testing "EdnVal for string"
+    (let [source "{:foo 123}"
+          value   {:foo 123}
+          ev (read-edn source)]
+      (is (instance? EdnVal ev))
+      (is (= value (extract ev)))
+      (is (provided? ev))))
+  (testing "EdnVal for nil"
+    (let [source nil
+          ev (read-edn source)]
+      (is (instance? EdnVal ev))
+      (is (nil? (extract ev)))
+      (is (provided? ev))))
+  (testing "EdnVal of provided source"
+    (let [source (reify
+                   Extractable
+                   (extract [_] "{:foo 123}")
+                   Optional
+                   (provided? [_] true))
+          ev (read-edn source)]
+      (is (instance? EdnVal ev))
+      (is (= {:foo 123} (extract ev)))
+      (is (provided? ev))))
+  (testing "EdnVal of not-provided source"
+    (let [source (reify
+                   Extractable
+                   (extract [_] nil)
+                   Optional
+                   (provided? [_] false))
+          ev (read-edn source)]
+      (is (instance? EdnVal ev))
+      (is (nil? (extract ev)))
+      (is (not (provided? ev))))))
+
 
 (deftest test-defconfig
   (testing "Without config entry."
