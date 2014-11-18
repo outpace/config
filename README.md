@@ -8,9 +8,7 @@ A library for declaring configuration vars and setting their values in a central
 
 Applications and libraries wishing to declare config vars should add the following to the `project.clj` file:
 
-```clojure
-:dependencies [[com.outpace/config "0.7.0"]]
-```
+[![Clojars Project](http://clojars.org/com.outpace/config/latest-version.svg)](http://clojars.org/com.outpace/config)
 
 Applications may also include the following to ease [generating a `config.edn` file](#generator-usage):
 
