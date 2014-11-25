@@ -95,6 +95,13 @@
     (testing "EdnVal edn-printing"
       (is (= (str "#config/edn " (pr-str source)) (pr-str ev))))))
 
+(defn extractable [value provided]
+  (reify
+    Extractable
+    (extract [_] value)
+    Optional
+    (provided? [_] provided)))
+
 (deftest test-read-edn
   (testing "EdnVal for string"
     (let [source "{:foo 123}"
@@ -110,21 +117,13 @@
       (is (nil? (extract ev)))
       (is (provided? ev))))
   (testing "EdnVal of provided source"
-    (let [source (reify
-                   Extractable
-                   (extract [_] "{:foo 123}")
-                   Optional
-                   (provided? [_] true))
+    (let [source (extractable "{:foo 123}" true)
           ev (read-edn source)]
       (is (instance? EdnVal ev))
       (is (= {:foo 123} (extract ev)))
       (is (provided? ev))))
   (testing "EdnVal of not-provided source"
-    (let [source (reify
-                   Extractable
-                   (extract [_] nil)
-                   Optional
-                   (provided? [_] false))
+    (let [source (extractable nil false)
           ev (read-edn source)]
       (is (instance? EdnVal ev))
       (is (nil? (extract ev)))
@@ -264,4 +263,16 @@
         (testing "exception when configured value is invalid, but default isn't"
           (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo 4))))))))
 
+(deftest test-extract
+  (testing "recursively extract"
+    (is (= {:foo "bar"} (extract {:foo (extractable "bar" true)})))
+    (is (= #{"bar"} (extract #{(extractable "bar" true)})))
+    (is (= (list "bar") (extract (list (extractable "bar" true)))))
+    (is (= ["bar"] (extract [(extractable "bar" true)])))))
 
+(deftest test-provided?
+  (testing "recursively provide"
+    (is (not (provided? {:foo (extractable "bar" false)})))
+    (is (not (provided? #{(extractable "bar" false)})))
+    (is (not (provided? (list (extractable "bar" false)))))
+    (is (not (provided? [(extractable "bar" false)])))))
