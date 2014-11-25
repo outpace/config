@@ -220,7 +220,19 @@
       (defconfig! req2)
       (is (-> #'req2 meta :required))))
   (testing "Error when no value provided"
-    (is (thrown? Exception (defconfig! req3)))))
+    (is (thrown? Exception (defconfig! req3))))
+  (testing "Recursive extraction"
+    (testing "no error when value provided"
+      (let [name (env-var-name)
+            value (System/getenv name)]
+        (with-redefs [config (delay {`req4 {:foo (read-env name)}})]
+          (defconfig! req4)
+          (is (= {:foo value} req4))
+          (is (-> #'req4 meta :required)))))
+    (testing "error when no value provided"
+      (let [name (missing-env-var-name)]
+        (with-redefs [config (delay {`req5 {:foo (read-env name)}})]
+          (is (thrown? Exception (defconfig! req5))))))))
 
 (deftest test-validate
   (testing "Tests must be a vector"
