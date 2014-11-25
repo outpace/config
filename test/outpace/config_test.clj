@@ -31,18 +31,25 @@
     (testing "EnvVal edn-printing"
       (is (= (str "#config/env " (pr-str name)) (pr-str ev))))))
 
+(defn env-var-name []
+  (let [name (first (keys (java.lang.System/getenv)))]
+    (assert name "Cannot test read-env without environment variables")
+    name))
+
+(defn missing-env-var-name []
+  (let [ks   (set (keys (System/getenv)))]
+    (first (remove ks (map str (range))))))
+
 (deftest test-read-env
   (testing "EnvVal for extant environment variable."
-    (let [name  (first (keys (java.lang.System/getenv)))
-          _     (assert name "Cannot test read-env without environment variables")
+    (let [name  (env-var-name)
           value (System/getenv name)
           ev    (read-env name)]
       (is (instance? EnvVal ev))
       (is (= value (extract ev)))
       (is (provided? ev))))
   (testing "EnvVal for missing environment variable."
-    (let [ks   (set (keys (System/getenv)))
-          name (first (remove ks (map str (range))))
+    (let [name (missing-env-var-name)
           ev   (read-env name)]
       (is (instance? EnvVal ev))
       (is (nil? (extract ev)))
@@ -127,6 +134,23 @@
           ev (read-edn source)]
       (is (instance? EdnVal ev))
       (is (nil? (extract ev)))
+      (is (not (provided? ev)))))
+  (testing "EdnVal recurses for extant environment variable."
+    (let [name (env-var-name)
+          value (System/getenv name)
+          source (str "{:foo 123 :bar (#{[{:baz #config/env " (pr-str name) "}]})}")
+          value   {:foo 123 :bar (list #{[{:baz value}]})}
+          ev (read-edn source)]
+      (is (instance? EdnVal ev))
+      (is (= value (extract ev)))
+      (is (provided? ev))))
+  (testing "EdnVal recurses for missing environment variable."
+    (let [name (missing-env-var-name)
+          source (str "{:foo 123 :bar (#{[{:baz #config/env " (pr-str name) "}]})}")
+          value   {:foo 123 :bar (list #{[{:baz nil}]})}
+          ev (read-edn source)]
+      (is (instance? EdnVal ev))
+      (is (= value (extract ev)))
       (is (not (provided? ev))))))
 
 

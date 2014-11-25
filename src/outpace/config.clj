@@ -91,7 +91,8 @@
   [source]
   (let [s (extract source)]
     (if (or (nil? s) (string? s))
-      (->EdnVal source (edn/read-string {:readers *data-readers*} s) (provided? source))
+      (let [read-value (edn/read-string {:readers *data-readers*} s)]
+        (->EdnVal source (extract read-value) (and (provided? source) (provided? read-value))))
       (throw (IllegalArgumentException. (str "Argument to #config/edn must be a string: " (pr-str source)))))))
 
 (defn valid-key?
