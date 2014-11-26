@@ -161,6 +161,14 @@ The third section lists all config vars used by the system, and their respective
 
 ## Change Log
 
+### v0.8.0
+- `extract` and `provides?` now recursively visit data structures.  This allows something like the following in your `config.edn` file (which did not work before):
+
+  ```clojure
+  {foo.bar/aws-creds {:access-key #config/env "AWS_ACCESS_KEY_ID"
+                      :secret-key #config/env "AWS_SECRET_ACCESS_KEY"}}
+  ```
+
 ### v0.7.0
 - Add `#config/edn` data-reader which can be composed with other readers to interpret values from content.
 
