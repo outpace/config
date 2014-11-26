@@ -3,6 +3,8 @@
 
 A library for declaring configuration vars and setting their values in a centralized fashion. Included tooling allows one to gather and emit all config vars and their docstrings, default values, etc.
 
+[Latest API Docs](https://outpace.github.io/latest/)
+[Stable (0.7.0) API Docs](https://outpace.github.io/0.7.0/)
 
 ## Installation
 
