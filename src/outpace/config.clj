@@ -11,7 +11,17 @@
   nil
   (extract [x] x)
   Object
-  (extract [x] x))
+  (extract [x]
+    (cond
+     (map? x) (reduce-kv (fn [x k v]
+                           (assoc x (extract k) (extract v)))
+                         (empty x)
+                         x)
+     (coll? x) (reduce (fn [x v]
+                         (conj x (extract v)))
+                       (empty x)
+                       x)
+     :else x)))
 
 (defprotocol Optional
   (provided? [this] "Returns true if the item should be bound to a config var."))
@@ -20,7 +30,17 @@
   nil
   (provided? [_] true)
   Object
-  (provided? [_] true))
+  (provided? [x]
+    (cond
+     (map? x) (reduce-kv (fn [x k v]
+                           (and x (provided? k) (provided? v)))
+                         true
+                         x)
+     (coll? x) (reduce (fn [x v]
+                         (and x (provided? v)))
+                       true
+                       x)
+     :else true)))
 
 (defrecord EnvVal [name value defined?]
   Extractable
@@ -71,7 +91,8 @@
   [source]
   (let [s (extract source)]
     (if (or (nil? s) (string? s))
-      (->EdnVal source (edn/read-string s) (provided? source))
+      (let [read-value (edn/read-string {:readers *data-readers*} s)]
+        (->EdnVal source (extract read-value) (and (provided? source) (provided? read-value))))
       (throw (IllegalArgumentException. (str "Argument to #config/edn must be a string: " (pr-str source)))))))
 
 (defn valid-key?

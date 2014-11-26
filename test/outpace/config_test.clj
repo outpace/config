@@ -31,18 +31,25 @@
     (testing "EnvVal edn-printing"
       (is (= (str "#config/env " (pr-str name)) (pr-str ev))))))
 
+(defn env-var-name []
+  (let [name (first (keys (java.lang.System/getenv)))]
+    (assert name "Cannot test read-env without environment variables")
+    name))
+
+(defn missing-env-var-name []
+  (let [ks   (set (keys (System/getenv)))]
+    (first (remove ks (map str (range))))))
+
 (deftest test-read-env
   (testing "EnvVal for extant environment variable."
-    (let [name  (first (keys (java.lang.System/getenv)))
-          _     (assert name "Cannot test read-env without environment variables")
+    (let [name  (env-var-name)
           value (System/getenv name)
           ev    (read-env name)]
       (is (instance? EnvVal ev))
       (is (= value (extract ev)))
       (is (provided? ev))))
   (testing "EnvVal for missing environment variable."
-    (let [ks   (set (keys (System/getenv)))
-          name (first (remove ks (map str (range))))
+    (let [name (missing-env-var-name)
           ev   (read-env name)]
       (is (instance? EnvVal ev))
       (is (nil? (extract ev)))
@@ -95,6 +102,13 @@
     (testing "EdnVal edn-printing"
       (is (= (str "#config/edn " (pr-str source)) (pr-str ev))))))
 
+(defn extractable [value provided]
+  (reify
+    Extractable
+    (extract [_] value)
+    Optional
+    (provided? [_] provided)))
+
 (deftest test-read-edn
   (testing "EdnVal for string"
     (let [source "{:foo 123}"
@@ -110,24 +124,33 @@
       (is (nil? (extract ev)))
       (is (provided? ev))))
   (testing "EdnVal of provided source"
-    (let [source (reify
-                   Extractable
-                   (extract [_] "{:foo 123}")
-                   Optional
-                   (provided? [_] true))
+    (let [source (extractable "{:foo 123}" true)
           ev (read-edn source)]
       (is (instance? EdnVal ev))
       (is (= {:foo 123} (extract ev)))
       (is (provided? ev))))
   (testing "EdnVal of not-provided source"
-    (let [source (reify
-                   Extractable
-                   (extract [_] nil)
-                   Optional
-                   (provided? [_] false))
+    (let [source (extractable nil false)
           ev (read-edn source)]
       (is (instance? EdnVal ev))
       (is (nil? (extract ev)))
+      (is (not (provided? ev)))))
+  (testing "EdnVal recurses for extant environment variable."
+    (let [name (env-var-name)
+          value (System/getenv name)
+          source (str "{:foo 123 :bar (#{[{:baz #config/env " (pr-str name) "}]})}")
+          value   {:foo 123 :bar (list #{[{:baz value}]})}
+          ev (read-edn source)]
+      (is (instance? EdnVal ev))
+      (is (= value (extract ev)))
+      (is (provided? ev))))
+  (testing "EdnVal recurses for missing environment variable."
+    (let [name (missing-env-var-name)
+          source (str "{:foo 123 :bar (#{[{:baz #config/env " (pr-str name) "}]})}")
+          value   {:foo 123 :bar (list #{[{:baz nil}]})}
+          ev (read-edn source)]
+      (is (instance? EdnVal ev))
+      (is (= value (extract ev)))
       (is (not (provided? ev))))))
 
 
@@ -221,7 +244,19 @@
       (defconfig! req2)
       (is (-> #'req2 meta :required))))
   (testing "Error when no value provided"
-    (is (thrown? Exception (defconfig! req3)))))
+    (is (thrown? Exception (defconfig! req3))))
+  (testing "Recursive extraction"
+    (testing "no error when value provided"
+      (let [name (env-var-name)
+            value (System/getenv name)]
+        (with-redefs [config (delay {`req4 {:foo (read-env name)}})]
+          (defconfig! req4)
+          (is (= {:foo value} req4))
+          (is (-> #'req4 meta :required)))))
+    (testing "error when no value provided"
+      (let [name (missing-env-var-name)]
+        (with-redefs [config (delay {`req5 {:foo (read-env name)}})]
+          (is (thrown? Exception (defconfig! req5))))))))
 
 (deftest test-validate
   (testing "Tests must be a vector"
@@ -264,4 +299,16 @@
         (testing "exception when configured value is invalid, but default isn't"
           (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo 4))))))))
 
+(deftest test-extract
+  (testing "recursively extract"
+    (is (= {:foo "bar"} (extract {:foo (extractable "bar" true)})))
+    (is (= #{"bar"} (extract #{(extractable "bar" true)})))
+    (is (= (list "bar") (extract (list (extractable "bar" true)))))
+    (is (= ["bar"] (extract [(extractable "bar" true)])))))
 
+(deftest test-provided?
+  (testing "recursively provide"
+    (is (not (provided? {:foo (extractable "bar" false)})))
+    (is (not (provided? #{(extractable "bar" false)})))
+    (is (not (provided? (list (extractable "bar" false)))))
+    (is (not (provided? [(extractable "bar" false)])))))
