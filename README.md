@@ -5,7 +5,7 @@ A library for declaring configuration vars and setting their values in a central
 
 [Latest API Docs](https://outpace.github.io/config/latest/)
 
-[Stable (0.7.0) API Docs](https://outpace.github.io/config/0.7.0/)
+[Stable (0.8.0) API Docs](https://outpace.github.io/config/0.8.0/)
 
 ## Installation
 
