@@ -5,6 +5,7 @@
   (:require [clojure.java.io :as io]
             [clojure.pprint :refer [pprint]]
             [clojure.set :as set]
+            [clojure.stacktrace :refer [print-cause-trace]]
             [clojure.string :as str]
             [clojure.tools.namespace.repl :as nsr]
             [outpace.config :as conf]
@@ -161,7 +162,10 @@
         ;; When an explicit config-source is provided, make sure the file exists
         ;; before loading the config ns, otherwise it would be considered an error.
         (spit config-file "{}"))
-      (nsr/refresh :after (if strict?
-                            `generate-config-file-strict
-                            `generate-config-file))
-      (shutdown-agents))))
+      (binding [*e nil]
+        (nsr/refresh :after (if strict?
+                              `generate-config-file-strict
+                              `generate-config-file))
+        (when *e
+          (print-cause-trace *e)))))
+  (shutdown-agents))
