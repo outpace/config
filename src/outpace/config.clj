@@ -4,6 +4,8 @@
             [clojure.set :as set]
             [outpace.config.bootstrap :refer [find-config-source]]))
 
+(def generating? false)
+
 (defprotocol Extractable
   (extract [this] "Extracts the value to be bound to a config var"))
 
@@ -217,7 +219,7 @@
            (alter non-defaulted conj qname#)))
        (if (present? qname#)
          (alter-var-root var# (constantly (lookup qname#)))
-         (when (and (-> var# meta :required) (not *compile-files*))
+         (when (and (-> var# meta :required) (not *compile-files*) (not generating?))
            (throw (Exception. (str "Missing required value for config var: " qname#)))))
        (when-let [validate# (and (bound? var#) (not *compile-files*) (-> var# meta :validate))]
          (validate @var# qname# validate#))
