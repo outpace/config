@@ -154,13 +154,14 @@
      :strict Errors on config vars with neither a default nor configured value"
   [& flags]
   (println "Loading namespaces")
-  (let [strict? (some #{":strict"} flags)
-        config-file (boot/find-config-source)]
-    (when (and config-file (not (.exists (io/file config-file))))
-      ; When an explicit config-source is provided, make sure the file exists
-      ; before loading the config ns, otherwise it would be considered an error.
-      (spit config-file "{}"))
-    (nsr/refresh :after (if strict?
-                          `generate-config-file-strict
-                          `generate-config-file))
-    (shutdown-agents)))
+  (with-redefs [conf/generating? true]
+    (let [strict? (some #{":strict"} flags)
+          config-file (boot/find-config-source)]
+      (when (and config-file (not (.exists (io/file config-file))))
+        ;; When an explicit config-source is provided, make sure the file exists
+        ;; before loading the config ns, otherwise it would be considered an error.
+        (spit config-file "{}"))
+      (nsr/refresh :after (if strict?
+                            `generate-config-file-strict
+                            `generate-config-file))
+      (shutdown-agents))))
