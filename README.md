@@ -5,7 +5,7 @@ A library for declaring configuration vars and setting their values in a central
 
 [Latest API Docs](https://outpace.github.io/config/latest/)
 
-[Stable (0.8.0) API Docs](https://outpace.github.io/config/0.8.0/)
+[Stable (0.9.0) API Docs](https://outpace.github.io/config/0.9.0/)
 
 ## Installation
 
@@ -163,6 +163,10 @@ The second section lists config entries that have no corresponding config var. T
 The third section lists all config vars used by the system, and their respective values.  For reference purposes, commented-out default values will be included after the configured value.  Likewise, commented-out entries will be included when their default values are used.
 
 ## Change Log
+
+### v0.9.0
+- A required config (e.g. defconfig!) will not cause an error when running the generator.
+- When running the generator if an error occurs, its details will be printed.
 
 ### v0.8.0
 - `extract` and `provides?` now recursively visit data structures.  This allows something like the following in your `config.edn` file (which did not work before):
