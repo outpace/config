@@ -2,6 +2,7 @@
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.set :as set]
+            [etcd-clojure.core :as etcd]
             [outpace.config.bootstrap :refer [find-config-source]]))
 
 (def generating? false)
@@ -59,6 +60,26 @@
   (if (and name (string? name))
     (->EnvVal name (System/getenv name) (contains? (System/getenv) name))
     (throw (IllegalArgumentException. (str "Argument to #config/env must be a string: " (pr-str name))))))
+
+(defrecord EtcdVal [name]
+  Extractable
+  (extract [_]
+    (etcd/get name))
+  Optional
+  (provided? [_]
+    (etcd/get name)))
+
+(defmethod print-method EtcdVal [^EtcdVal ev ^java.io.Writer w]
+  (.write w (str "#config/etcd " (pr-str (.name ev)))))
+
+(defn read-etcd
+  "Returns an EtcdVal identified by the specified string name."
+  [name]
+  (etcd/connect! "local-trek.outpace.com" 4001)
+  (if (and name (string? name))
+    (let [value (etcd/get name)]
+      (->EtcdVal name value value))
+    (throw (IllegalArgumentException. (str "Argument to #config/edn must be a string: " (pr-str name))))))
 
 (defrecord FileVal [path contents exists?]
   Extractable

@@ -4,7 +4,8 @@
   :license {:name "Apache License, Version 2.0"
             :url "http://www.apache.org/licenses/LICENSE-2.0.html"}
   :dependencies [[org.clojure/clojure "1.5.1"]
-                 [org.clojure/tools.namespace "0.2.5"]]
+                 [org.clojure/tools.namespace "0.2.5"]
+                 [etcd-clojure "0.2.2"]]
   :plugins [[codox "0.8.10"]]
   :codox {:src-dir-uri "http://github.com/outpace/config/blob/master/"
           :src-linenum-anchor-prefix "L"}
