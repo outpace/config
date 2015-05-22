@@ -3,7 +3,9 @@
             [clojure.java.io :as io]
             [clojure.set :as set]
             [etcd-clojure.core :as etcd]
-            [outpace.config.bootstrap :refer [find-config-source]]))
+            [outpace.config.bootstrap :refer [find-config-source]])
+  (:import [clojure.lang IDeref])
+  )
 
 (def generating? false)
 
@@ -75,11 +77,9 @@
 (defn read-etcd
   "Returns an EtcdVal identified by the specified string name."
   [name]
-  (etcd/connect! "local-trek.outpace.com" 4001)
   (if (and name (string? name))
-    (let [value (etcd/get name)]
-      (->EtcdVal name value value))
-    (throw (IllegalArgumentException. (str "Argument to #config/edn must be a string: " (pr-str name))))))
+    (->EtcdVal name)
+    (throw (IllegalArgumentException. (str "Argument to #config/etcd must be a string: " (pr-str name))))))
 
 (defrecord FileVal [path contents exists?]
   Extractable
@@ -219,6 +219,43 @@
                        :sym  var-sym
                        :val  val})))))
 
+(defn allowed-to-deref? []
+  (and (not *compile-files*) (not generating?)))
+
+(declare deref-config)
+
+(deftype ConfigDefault [qname required? default]
+  IDeref
+  (deref [this]
+    (deref-config this)))
+
+(defn check-presence [config]
+  (when (allowed-to-deref?)
+    (deref config)))
+
+(defn deref-config [config]
+  (let [qname (.qname config)]
+    (cond
+      (not (allowed-to-deref?))
+      (throw (ex-info "Not allowed to deref config var" {:qualified-name qname
+                                                         :compile-files? *compile-files*
+                                                         :generating? generating?}))
+      (present? qname)
+      (lookup qname)
+
+      (isa? ConfigDefault config)
+      (.default config)
+
+      (.required? config)
+      (throw (ex-info "Missing required value for config var" {:qualified-name qname}))
+      :else
+      nil)))
+
+(deftype Config [qname required?]
+  IDeref
+  (deref [this]
+    (deref-config this)))
+
 (defmacro defconfig
   "Same as (def name doc-string? init?) except the var's value may be configured
    at load-time by this library.
@@ -232,40 +269,40 @@
 
    Note: default-val will be evaluated, even if a configured value is provided."
   ([name]
-    `(let [var#   (def ~name)
-           qname# (var-symbol var#)]
+    `(let [
+           var#    (def ~name nil)
+           qname#  (var-symbol var#)
+           config# (Config. qname# (-> var# meta :required))]
+       (alter-var-root var# (constantly config#))
+       (check-presence config#)
        (dosync
          ; keep consistent with the fact that redefining a bound var does not unbind it
          (when-not (contains? (ensure defaults) qname#)
            (alter non-defaulted conj qname#)))
-       (if (present? qname#)
-         (alter-var-root var# (constantly (lookup qname#)))
-         (when (and (-> var# meta :required) (not *compile-files*) (not generating?))
-           (throw (Exception. (str "Missing required value for config var: " qname#)))))
        (when-let [validate# (and (bound? var#) (not *compile-files*) (-> var# meta :validate))]
          (validate @var# qname# validate#))
        var#))
   ([name default-val]
     `(let [default-val# ~default-val
-           var#         (def ~name default-val#)
-           qname#       (var-symbol var#)]
+           var#         (def ~name nil)
+           qname#       (var-symbol var#)
+           config#      (ConfigDefault. qname# (-> var# meta :required) default-val#)]
+       (alter-var-root var# (constantly config#))
        (dosync
          (alter defaults assoc qname# default-val#)
          (alter non-defaulted disj qname#))
-       (when (present? qname#)
-         (alter-var-root var# (constantly (lookup qname#))))
        (when-let [validate# (and (not *compile-files*) (-> var# meta :validate))]
          (validate @var# qname# validate#))
        var#))
   ([name doc default-val]
     `(let [default-val# ~default-val
-           var#         (def ~name ~doc default-val#)
-           qname#       (var-symbol var#)]
+           var#         (def ~name ~doc )
+           qname#       (var-symbol var#)
+           config#      (ConfigDefault. qname# (-> var# meta :required) default-val#)]
+       (alter-var-root var# (constantly config#))
        (dosync
          (alter defaults assoc qname# default-val#)
          (alter non-defaulted disj qname#))
-       (when (present? qname#)
-         (alter-var-root var# (constantly (lookup qname#))))
        (when-let [validate# (and (not *compile-files*) (-> var# meta :validate))]
          (validate @var# qname# validate#))
        var#)))

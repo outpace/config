@@ -1,5 +1,6 @@
 (ns outpace.config.bootstrap
-  (:require [clojure.java.io :as io]))
+  (:require [clojure.java.io :as io]
+            [etcd-clojure.core :as etcd]))
 
 (def explicit-config-source
   "When set to a non-nil value, will be used as the config-source.
@@ -15,6 +16,8 @@
      - \"config.edn\", if the file exists in the current working directory
    otherwise nil."
   []
+  ; TODO: This sucks:
+  (etcd/connect! "local-trek.outpace.com" 4001)
   (or explicit-config-source
       (System/getProperty "config.edn")
       (when (.exists (io/file "config.edn"))
