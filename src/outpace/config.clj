@@ -66,10 +66,10 @@
 (defrecord EtcdVal [name]
   Extractable
   (extract [_]
-    (etcd/get name))
+    (edn/read-string (etcd/get name)))
   Optional
   (provided? [_]
-    (etcd/get name)))
+    (not (nil? (etcd/get name)))))
 
 (defmethod print-method EtcdVal [^EtcdVal ev ^java.io.Writer w]
   (.write w (str "#config/etcd " (pr-str (.name ev)))))
@@ -229,9 +229,10 @@
   (deref [this]
     (deref-config this)))
 
-(defn check-presence [config]
-  (when (allowed-to-deref?)
-    (deref config)))
+(deftype Config [qname required?]
+  IDeref
+  (deref [this]
+    (deref-config this)))
 
 (defn deref-config [config]
   (let [qname (.qname config)]
@@ -248,13 +249,13 @@
 
       (.required? config)
       (throw (ex-info "Missing required value for config var" {:qualified-name qname}))
+
       :else
       nil)))
 
-(deftype Config [qname required?]
-  IDeref
-  (deref [this]
-    (deref-config this)))
+(defn check-presence [config]
+  (when (allowed-to-deref?)
+    (deref config)))
 
 (defmacro defconfig
   "Same as (def name doc-string? init?) except the var's value may be configured
