@@ -68,7 +68,7 @@
 (defrecord EtcdVal [name]
   Extractable
   (extract [_]
-    (edn/read-string (etcd/get name)))
+    (extract (edn/read-string {:readers *data-readers*} (etcd/get name))))
   Optional
   (provided? [_]
     (not (nil? (etcd/get name)))))
@@ -195,9 +195,8 @@
 
 (defn var-symbol
   "Returns the namespace-qualified symbol for the var."
-  [v]
-  (symbol (-> v meta :ns ns-name name)
-          (-> v meta :name name)))
+  [name]
+  (symbol (str *ns* "/" name)))
 
 (defn validate
   "Throws an ex-info if, for any predicate in validate-vec, (pred val) is false.
@@ -229,12 +228,12 @@
 
 (declare deref-config)
 
-(deftype ConfigDefault [qname required? default]
+(deftype ConfigDefault [qname required default]
   IDeref
   (deref [this]
     (deref-config this)))
 
-(deftype Config [qname required?]
+(deftype Config [qname required]
   IDeref
   (deref [this]
     (deref-config this)))
@@ -249,18 +248,45 @@
       (present? qname)
       (lookup qname)
 
-      (isa? ConfigDefault config)
+      (instance? ConfigDefault config)
       (.default config)
 
-      (.required? config)
+      (.required config)
       (throw (ex-info "Missing required value for config var" {:qualified-name qname}))
 
       :else
-      nil)))
+      (throw (ex-info "Config var not provided and no default specified" {:qualified-name qname})))))
 
 (defn check-presence [config]
   (when (allowed-to-deref?)
     (deref config)))
+
+(defn defconfig* [name & {:keys [doc default-val] :as opts}]
+  (let [qname (var-symbol name)
+        default? (contains? opts :default-val)
+        required? (-> name meta :required)
+        config (if default?
+                  (ConfigDefault. qname required? default-val)
+                  (Config. qname required?))
+        qname' `(quote ~qname)]
+    `(do
+       (check-presence ~config)
+
+       (dosync
+         ; keep consistent with the fact that redefining a bound var does not unbind it
+         ~(if default?
+            `(do
+               (alter defaults assoc ~qname' ~default-val)
+               (alter non-defaulted disj ~qname'))
+            `(when-not (contains? (ensure defaults) ~qname')
+               (alter non-defaulted conj ~qname'))))
+
+       ~(when-let [validate# (and (not *compile-files*) (-> name meta :validate))]
+          `(validate @~config ~qname' validate#))
+
+       ~(if doc
+          `(def ~name ~doc ~config)
+          `(def ~name ~config)))))
 
 (defmacro defconfig
   "Same as (def name doc-string? init?) except the var's value may be configured
@@ -275,43 +301,11 @@
 
    Note: default-val will be evaluated, even if a configured value is provided."
   ([name]
-    `(let [
-           var#    (def ~name nil)
-           qname#  (var-symbol var#)
-           config# (Config. qname# (-> var# meta :required))]
-       (alter-var-root var# (constantly config#))
-       (check-presence config#)
-       (dosync
-         ; keep consistent with the fact that redefining a bound var does not unbind it
-         (when-not (contains? (ensure defaults) qname#)
-           (alter non-defaulted conj qname#)))
-       (when-let [validate# (and (bound? var#) (not *compile-files*) (-> var# meta :validate))]
-         (validate @var# qname# validate#))
-       var#))
+   (defconfig* name))
   ([name default-val]
-    `(let [default-val# ~default-val
-           var#         (def ~name nil)
-           qname#       (var-symbol var#)
-           config#      (ConfigDefault. qname# (-> var# meta :required) default-val#)]
-       (alter-var-root var# (constantly config#))
-       (dosync
-         (alter defaults assoc qname# default-val#)
-         (alter non-defaulted disj qname#))
-       (when-let [validate# (and (not *compile-files*) (-> var# meta :validate))]
-         (validate @var# qname# validate#))
-       var#))
+   (defconfig* name :default-val default-val))
   ([name doc default-val]
-    `(let [default-val# ~default-val
-           var#         (def ~name ~doc )
-           qname#       (var-symbol var#)
-           config#      (ConfigDefault. qname# (-> var# meta :required) default-val#)]
-       (alter-var-root var# (constantly config#))
-       (dosync
-         (alter defaults assoc qname# default-val#)
-         (alter non-defaulted disj qname#))
-       (when-let [validate# (and (not *compile-files*) (-> var# meta :validate))]
-         (validate @var# qname# validate#))
-       var#)))
+   (defconfig* name :doc doc :default-val default-val)))
 
 (defmacro defconfig!
   "Equivalent to (defconfig ^:required ...)."
