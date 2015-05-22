@@ -1,11 +1,13 @@
 (ns outpace.config
-  (:require [clojure.edn :as edn]
-            [clojure.java.io :as io]
-            [clojure.set :as set]
-            [etcd-clojure.core :as etcd]
-            [outpace.config.bootstrap :refer [find-config-source]])
-  (:import [clojure.lang IDeref])
-  )
+  (:require
+    [clojure.edn :as edn]
+    [clojure.core.memoize :as memo]
+    [clojure.java.io :as io]
+    [clojure.set :as set]
+    [etcd-clojure.core :as etcd]
+    [outpace.config.bootstrap :refer [find-config-source]])
+  (:import
+    [clojure.lang IDeref]))
 
 (def generating? false)
 
@@ -158,15 +160,19 @@
   (and (contains? @config qname)
        (provided? (get @config qname))))
 
-(defn lookup
+(defn lookup*
   "Returns the extracted value if the qname is present, otherwise default-val
    or nil."
   ([qname]
     (extract (get @config qname)))
   ([qname default-val]
     (if (present? qname)
-      (lookup name)
+      (lookup* name)
       default-val)))
+
+(def one-minute (* 60 1000))
+
+(def lookup (memo/ttl lookup* :ttl/threshold one-minute))
 
 (def defaults
   "A ref containing the map of symbols for the loaded defconfig vars to their
