@@ -81,11 +81,13 @@
     (->EtcdVal name)
     (throw (IllegalArgumentException. (str "Argument to #config/etcd must be a string: " (pr-str name))))))
 
-(defrecord FileVal [path contents exists?]
+(defrecord FileVal [path]
   Extractable
-  (extract [_] contents)
+  (extract [_]
+    (slurp (io/file path)))
   Optional
-  (provided? [_] exists?))
+  (provided? [_]
+    (.exists (io/file path))))
 
 (defmethod print-method FileVal [^FileVal fv ^java.io.Writer w]
   (.write w (str "#config/file " (pr-str (.path fv)))))
@@ -94,10 +96,7 @@
   "Returns a FileVal identified by the specified string path."
   [path]
   (if (and path (string? path))
-    (let [f (io/file path)]
-      (if (.exists f)
-        (->FileVal path (slurp f) true)
-        (->FileVal path nil false)))
+    (->FileVal path)
     (throw (IllegalArgumentException. (str "Argument to #config/file must be a string: " (pr-str path))))))
 
 (defrecord EdnVal [source value source-provided?]
