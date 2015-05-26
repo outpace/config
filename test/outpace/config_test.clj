@@ -136,7 +136,7 @@
           ev (read-edn source)]
       (is (instance? EdnVal ev))
       (is (nil? (extract ev)))
-      (is (provided? ev))))
+      (is (not (provided? ev)))))
   (testing "EdnVal of provided source"
     (let [source (extractable "{:foo 123}" true)
           ev (read-edn source)]
@@ -202,68 +202,68 @@
         (is (not (contains? @non-defaulted `ddd)))
         (is (contains? @defaults `ddd)))))
   (testing "With config entry"
-    (with-redefs [read-config (constantly {`eee :config `fff :config `ggg :config `hhh :config})]
-      (testing "No default val, no docstring"
-        (defconfig eee)
-        (is (= :config @eee)))
-      (testing "With default, no docstring"
-        (defconfig fff :default)
-        (is (= :config @fff)))
-      (testing "With default and docstring"
-        (defconfig ggg "doc" :default)
-        (is (= :config @ggg))
-        (is (= "doc" (:doc (meta #'ggg)))))
-      (testing "Repeat defconfigs yield consistent state."
+    (reset! source {`eee :config `fff :config `ggg :config `hhh :config})
+    (testing "No default val, no docstring"
+      (defconfig eee)
+      (is (= :config @eee)))
+    (testing "With default, no docstring"
+      (defconfig fff :default)
+      (is (= :config @fff)))
+    (testing "With default and docstring"
+      (defconfig ggg "doc" :default)
+      (is (= :config @ggg))
+      (is (= "doc" (:doc (meta #'ggg)))))
+    (testing "Repeat defconfigs yield consistent state."
+      (defconfig hhh)
+      (testing "Including default."
+        (defconfig hhh :default)
+        (is (nil? (:doc (meta #'hhh))))
+        (is (= :config @hhh))
+        (is (not (contains? @non-defaulted `hhh)))
+        (is (= :default (@defaults `hhh))))
+      (testing "Including docstring."
+        (defconfig hhh "doc" :default2)
+        (is (= "doc" (:doc (meta #'hhh))))
+        (is (= :config @hhh))
+        (is (not (contains? @non-defaulted `hhh)))
+        (is (= :default2 (@defaults `hhh))))
+      (testing "Omitting docstring."
+        (defconfig hhh :default3)
+        (is (nil? (:doc (meta #'hhh))))
+        (is (= :config @hhh))
+        (is (not (contains? @non-defaulted `hhh)))
+        (is (= :default3 (@defaults `hhh))))
+      (testing "Omitting default does not remove it, just like def."
         (defconfig hhh)
-        (testing "Including default."
-          (defconfig hhh :default)
-          (is (nil? (:doc (meta #'hhh))))
-          (is (= :config @hhh))
-          (is (not (contains? @non-defaulted `hhh)))
-          (is (= :default (@defaults `hhh))))
-        (testing "Including docstring."
-          (defconfig hhh "doc" :default2)
-          (is (= "doc" (:doc (meta #'hhh))))
-          (is (= :config @hhh))
-          (is (not (contains? @non-defaulted `hhh)))
-          (is (= :default2 (@defaults `hhh))))
-        (testing "Omitting docstring."
-          (defconfig hhh :default3)
-          (is (nil? (:doc (meta #'hhh))))
-          (is (= :config @hhh))
-          (is (not (contains? @non-defaulted `hhh)))
-          (is (= :default3 (@defaults `hhh))))
-        (testing "Omitting default does not remove it, just like def."
-          (defconfig hhh)
-          (is (nil? (:doc (meta #'hhh))))
-          (is (= :config @hhh))
-          (is (not (contains? @non-defaulted `hhh)))
-          (is (= :default3 (@defaults `hhh))))))))
+        (is (nil? (:doc (meta #'hhh))))
+        (is (= :config @hhh))
+        (is (not (contains? @non-defaulted `hhh)))
+        (is (= :default3 (@defaults `hhh)))))))
 
 (deftest test-defconfig!
   (testing "Preserves metadata"
-    (with-redefs [read-config (constantly {`req1 :config})]
-      (defconfig! ^{:doc "foobar"} req1)
-      (is (-> #'req1 meta :required))
-      (is (= "foobar" (-> #'req1 meta :doc)))))
+    (reset! source {`req1 :config})
+    (defconfig! ^{:doc "foobar"} req1)
+    (is (-> #'req1 meta :required))
+    (is (= "foobar" (-> #'req1 meta :doc))))
   (testing "No error when value provided"
-    (with-redefs [read-config (constantly {`req2 :config})]
-      (defconfig! req2)
-      (is (-> #'req2 meta :required))))
+    (reset! source {`req2 :config})
+    (defconfig! req2)
+    (is (-> #'req2 meta :required)))
   (testing "Error when no value provided"
     (is (thrown? Exception (defconfig! req3))))
   (testing "Recursive extraction"
     (testing "no error when value provided"
       (let [name (env-var-name)
             value (System/getenv name)]
-        (with-redefs [read-config (constantly {`req4 {:foo (read-env name)}})]
-          (defconfig! req4)
-          (is (= {:foo value} @req4))
-          (is (-> #'req4 meta :required)))))
+        (reset! source {`req4 {:foo (read-env name)}})
+        (defconfig! req4)
+        (is (= {:foo value} @req4))
+        (is (-> #'req4 meta :required))))
     (testing "error when no value provided"
       (let [name (missing-env-var-name)]
-        (with-redefs [read-config (constantly {`req5 {:foo (read-env name)}})]
-          (is (thrown? Exception (defconfig! req5))))))))
+        (reset! source {`req5 {:foo (read-env name)}})
+        (is (thrown? Exception (defconfig! req5)))))))
 
 (deftest test-validate
   (testing "Tests must be a vector"
@@ -285,23 +285,24 @@
 
 (deftest test-defconfig-validate
   (testing "without config-value"
+    (reset! source {})
     (testing "with default-value"
       (testing "no exception when default-value is valid"
         (is (defconfig ^{:validate [even? "boom"]} foo 4)))
       (testing "exception when default-value is invalid"
          (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo 5))))))
-  (with-redefs [read-config (constantly {`foo 5})]
-    (testing "with config-value"
-      (testing "without default-value"
-       (testing "no exception when configured value is valid"
-         (is (defconfig ^{:validate [odd? "boom"]} foo)))
-       (testing "exception when configured value is invalid"
-         (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo)))))
-      (testing "with default-value"
-        (testing "no exception when configured value is valid, but default isn't"
-         (is (defconfig ^{:validate [odd? "boom"]} foo 4)))
-        (testing "exception when configured value is invalid, but default isn't"
-          (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo 4))))))))
+  (testing "with config-value"
+    (reset! source {`foo 5})
+    (testing "without default-value"
+      (testing "no exception when configured value is valid"
+        (is (defconfig ^{:validate [odd? "boom"]} foo)))
+      (testing "exception when configured value is invalid"
+        (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo)))))
+    (testing "with default-value"
+      (testing "no exception when configured value is valid, but default isn't"
+        (is (defconfig ^{:validate [odd? "boom"]} foo 4)))
+      (testing "exception when configured value is invalid, but default isn't"
+        (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo 4)))))))
 
 (deftest test-extract
   (testing "recursively extract"

@@ -4,10 +4,21 @@
     [clojure.core.memoize :as memo]
     [clojure.java.io :as io]
     [clojure.set :as set]
-    [etcd-clojure.core :as etcd]
-    [outpace.config.bootstrap :refer [find-config-source]])
+    [etcd-clojure.core :as etcd])
   (:import
-    [clojure.lang IDeref]))
+    [clojure.lang IDeref]
+    [java.net URI]))
+
+(defn load-data-readers
+  "Loads the namespaces of data reader Vars whose reader tag symbol has the
+   'config' namespace."
+  []
+  (doseq [lib-sym (->> *data-readers*
+                    (filter #(-> % key namespace #{"config"}))
+                    (map #(-> % val meta ^clojure.lang.Namespace (:ns) .name))
+                    (distinct))
+          :when (not= 'outpace.config lib-sym)]
+    (require lib-sym)))
 
 (def generating? false)
 
@@ -35,7 +46,7 @@
 
 (extend-protocol Optional
   nil
-  (provided? [_] true)
+  (provided? [_] false)
   Object
   (provided? [x]
     (cond
@@ -122,46 +133,74 @@
 (doseq [t [EtcdVal EnvVal FileVal EdnVal]]
   (.addMethod clojure.pprint/simple-dispatch t (fn [p] (print-method p *out*))))
 
-(defn valid-key?
-  "Returns true IFF k is acceptable as a key in a configuration map,
-   i.e., a namespaced symbol."
-  [k]
-  (and (symbol? k) (namespace k)))
+(defprotocol Source
+  (get-val [this qname] "docstring"))
 
-(defn read-config*
-  "Reads the config EDN map from a source acceptable to clojure.java.io/reader."
-  []
-  (when-let [source (find-config-source)]
-    (let [config-map (edn/read-string {:readers *data-readers*} (slurp source))]
-      (when-not (map? config-map)
-        (throw (IllegalArgumentException. (str "Configuration must be an EDN map: " (pr-str config-map)))))
-      (when-let [invalid-keys (seq (remove valid-key? (keys config-map)))]
-        (throw (IllegalArgumentException. (str "Configuration keys must be namespaced symbols: " (pr-str invalid-keys)))))
-      (vary-meta config-map assoc ::source source))))
+(defrecord EdnSource [path]
+  Source
+  (get-val [_ qname]
+    (get (extract (read-edn (->FileVal path))) qname)))
 
-(def one-minute (* 60 1000))
+(defrecord EtcdSource [host]
+  Source
+  (get-val [_ qname]
+    (let [uri (URI. host)]
+      (etcd/connect! (.getHost uri) (.getPort uri)))
+    (->EtcdVal qname)))
 
-(def read-config (memo/ttl read-config* :ttl/threshold one-minute))
+(extend-protocol Source
+  clojure.lang.ILookup
+  (get-val [this qname]
+    (get this qname)))
+
+(def source (atom nil))
+
+(defn find-config-source! []
+  (let [edn-path (System/getProperty "config.edn")
+        etcd-host (System/getProperty "config.etcd")]
+    (reset! source
+            (cond
+              (and edn-path etcd-host)
+              (throw (ex-info "Can't provide config.edn and config.etcd system properties"
+                              {"config.edn" edn-path
+                               "config.etcd" etcd-host}))
+
+              edn-path
+              (->EdnSource edn-path)
+
+              etcd-host
+              (->EtcdSource etcd-host)
+
+              (.exists (io/file "config.edn"))
+              (->EdnSource "config.edn")
+
+              :else
+              {}))))
+
+(defn initialize! []
+  (when-not @source
+    (load-data-readers)
+    (find-config-source!)))
 
 (defn present?
   "Returns true if a configuration entry exists for the qname and, if an
    Optional value, the value is provided."
   [qname]
-  (let [c (read-config)]
-    (and (contains? c qname)
-         (provided? (get c qname)))))
+  (provided? (get-val @source qname)))
 
 (defn lookup*
   "Returns the extracted value if the qname is present, otherwise default-val
    or nil."
   ([qname]
-   (extract (get (read-config) qname)))
+   (extract (get-val @source qname)))
   ([qname default-val]
-    (if (present? qname)
-      (lookup* name)
-      default-val)))
+   (if (present? qname)
+     (lookup* qname)
+     default-val)))
 
-(def lookup (memo/ttl lookup* :ttl/threshold one-minute))
+(def one-minute (* 60 1000))
+
+(def lookup lookup* #_(memo/ttl lookup* :ttl/threshold one-minute))
 
 (def defaults
   "A ref containing the map of symbols for the loaded defconfig vars to their
@@ -238,7 +277,7 @@
       :else
       (throw (ex-info "Config var not provided and no default specified"
                       {:qualified-name qname
-                       :provided (get (read-config) qname)})))))
+                       :provided "?" #_(get (read-config) qname)})))))
 
 (defn check-presence [config-val]
   (when (allowed-to-deref?)
@@ -253,6 +292,7 @@
                   (ConfigVal. qname required?))
         qname' `(quote ~qname)]
     `(do
+       (initialize!)
        (check-presence ~config-val)
 
        (dosync
