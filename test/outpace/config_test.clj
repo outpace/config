@@ -1,9 +1,10 @@
 (ns outpace.config-test
   (:use clojure.test
         outpace.config)
+  (:require [etcd-clojure.core :as etcd])
   (:import [clojure.lang ExceptionInfo]
            [java.io File FileNotFoundException]
-           [outpace.config EdnVal EnvVal FileVal]))
+           [outpace.config EdnVal EnvVal FileVal EtcdVal]))
 
 (defn unmap-non-fn-vars [ns]
   (doseq [[sym var] (ns-interns ns)]
@@ -13,6 +14,22 @@
 (use-fixtures :each (fn unmap-vars-fixture [f]
                       (unmap-non-fn-vars *ns*)
                       (f)))
+
+(deftest test-read-etcd
+  (with-redefs [etcd/get {"greeting" (pr-str "hello")}]
+    (testing "EtcdVal for extant variable."
+      (let [name  "greeting"
+            value "hello"
+            ev    (read-etcd name)]
+        (is (instance? EtcdVal ev))
+        (is (= value (extract ev)))
+        (is (provided? ev))))
+    (testing "EtcdVal for missing variable."
+      (let [name "missing"
+            ev   (read-etcd name)]
+        (is (instance? EtcdVal ev))
+        (is (nil? (extract ev)))
+        (is (not (provided? ev)))))))
 
 (deftest test-EnvVal
   (let [name     "name"
