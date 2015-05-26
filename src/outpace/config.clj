@@ -200,7 +200,11 @@
 
 (def one-minute (* 60 1000))
 
-(def lookup lookup* #_(memo/ttl lookup* :ttl/threshold one-minute))
+(def lookup (memo/ttl lookup* :ttl/threshold (or
+                                               (some-> (System/getProperty "config.ttl-seconds")
+                                                       (Integer/parseInt)
+                                                       (* 1000))
+                                               one-minute)))
 
 (def defaults
   "A ref containing the map of symbols for the loaded defconfig vars to their
