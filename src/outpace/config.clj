@@ -273,7 +273,6 @@
        (check-presence ~config)
 
        (dosync
-         ; keep consistent with the fact that redefining a bound var does not unbind it
          ~(if default?
             `(do
                (alter defaults assoc ~qname' ~default-val)
@@ -282,7 +281,7 @@
                (alter non-defaulted conj ~qname'))))
 
        ~(when-let [validate# (and (not *compile-files*) (-> name meta :validate))]
-          `(validate @~config ~qname' validate#))
+          `(validate @~config ~qname' ~validate#))
 
        ~(if doc
           `(def ~name ~doc ~config)
