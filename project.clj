@@ -5,8 +5,7 @@
             :url "http://www.apache.org/licenses/LICENSE-2.0.html"}
   :dependencies [[etcd-clojure "0.2.2"]
                  [org.clojure/clojure "1.5.1"]
-                 [org.clojure/core.memoize "0.5.6"]
-                 [org.clojure/tools.namespace "0.2.5"]]
+                 [org.clojure/core.memoize "0.5.7"]]
   :plugins [[codox "0.8.10"]]
   :codox {:src-dir-uri "http://github.com/outpace/config/blob/master/"
           :src-linenum-anchor-prefix "L"}

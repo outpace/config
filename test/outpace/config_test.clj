@@ -202,7 +202,7 @@
         (is (not (contains? @non-defaulted `ddd)))
         (is (contains? @defaults `ddd)))))
   (testing "With config entry"
-    (with-redefs [config (delay {`eee :config `fff :config `ggg :config `hhh :config})]
+    (with-redefs [read-config (constantly {`eee :config `fff :config `ggg :config `hhh :config})]
       (testing "No default val, no docstring"
         (defconfig eee)
         (is (= :config @eee)))
@@ -242,12 +242,12 @@
 
 (deftest test-defconfig!
   (testing "Preserves metadata"
-    (with-redefs [config (delay {`req1 :config})]
+    (with-redefs [read-config (constantly {`req1 :config})]
       (defconfig! ^{:doc "foobar"} req1)
       (is (-> #'req1 meta :required))
       (is (= "foobar" (-> #'req1 meta :doc)))))
   (testing "No error when value provided"
-    (with-redefs [config (delay {`req2 :config})]
+    (with-redefs [read-config (constantly {`req2 :config})]
       (defconfig! req2)
       (is (-> #'req2 meta :required))))
   (testing "Error when no value provided"
@@ -256,13 +256,13 @@
     (testing "no error when value provided"
       (let [name (env-var-name)
             value (System/getenv name)]
-        (with-redefs [config (delay {`req4 {:foo (read-env name)}})]
+        (with-redefs [read-config (constantly {`req4 {:foo (read-env name)}})]
           (defconfig! req4)
           (is (= {:foo value} @req4))
           (is (-> #'req4 meta :required)))))
     (testing "error when no value provided"
       (let [name (missing-env-var-name)]
-        (with-redefs [config (delay {`req5 {:foo (read-env name)}})]
+        (with-redefs [read-config (constantly {`req5 {:foo (read-env name)}})]
           (is (thrown? Exception (defconfig! req5))))))))
 
 (deftest test-validate
@@ -290,7 +290,7 @@
         (is (defconfig ^{:validate [even? "boom"]} foo 4)))
       (testing "exception when default-value is invalid"
          (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo 5))))))
-  (with-redefs [config (delay {`foo 5})]
+  (with-redefs [read-config (constantly {`foo 5})]
     (testing "with config-value"
       (testing "without default-value"
        (testing "no exception when configured value is valid"
