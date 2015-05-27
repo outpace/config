@@ -3,7 +3,6 @@
             [clojure.core.memoize :as memo]))
 
 (defn clear-cache! []
-  (memo/memo-clear! config/read-config)
   (memo/memo-clear! config/lookup))
 
 (defn set-source-edn! [path]
