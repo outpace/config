@@ -290,6 +290,17 @@
         (testing "exception when configured value is invalid, but default isn't"
           (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo 4))))))))
 
+(deftest test-defconfig-with-lookup
+  (testing "lookup as default"
+    (with-source {'bananas "oranges"}
+      (defconfig apples #config/lookup "bananas")
+      (is (= "oranges" @apples))))
+  (testing "lookup in config"
+    (with-source {'red "blue"
+                  `green #config/lookup "red"}
+      (defconfig green)
+      (is (= "blue" @green)))))
+
 (deftest test-extract
   (testing "recursively extract"
     (is (= {:foo "bar"} (extract {:foo (extractable "bar" true)})))

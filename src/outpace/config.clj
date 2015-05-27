@@ -112,6 +112,23 @@
     (->FileVal path)
     (throw (IllegalArgumentException. (str "Argument to #config/file must be a string: " (pr-str path))))))
 
+(declare lookup present?)
+
+(defrecord LookupVal [k]
+  Extractable
+  (extract [_]
+    (extract (lookup k)))
+  Optional
+  (provided? [_]
+    (present? k)))
+
+(defn read-lookup
+  "Returns a LookupVal from a string value."
+  [k]
+  (if (and k (string? k))
+    (->LookupVal (symbol k))
+    (throw (IllegalArgumentException. (str "Argument to #config/lookup must be a string: " (pr-str lookup))))))
+
 (defrecord EdnVal [source value source-provided?]
   Extractable
   (extract [_] value)
@@ -182,12 +199,8 @@
 (defn lookup*
   "Returns the extracted value if the qname is present, otherwise default-val
    or nil."
-  ([qname]
-   (extract (get-val @source qname)))
-  ([qname default-val]
-   (if (present? qname)
-     (lookup* qname)
-     default-val)))
+  [qname]
+  (extract (get-val @source qname)))
 
 (def lookup-ttl-seconds
   (or
@@ -268,7 +281,7 @@
       (lookup qname)
 
       (instance? ConfigValDefault config-val)
-      (.default config-val)
+      (extract (.default config-val))
 
       :else
       (when (not generating?)
