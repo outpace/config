@@ -1,7 +1,8 @@
 (ns outpace.config-test
   (:use clojure.test
         outpace.config)
-  (:require [etcd-clojure.core :as etcd])
+  (:require [etcd-clojure.core :as etcd]
+            [outpace.config.repl :as config.repl])
   (:import [clojure.lang ExceptionInfo]
            [java.io File FileNotFoundException]
            [outpace.config EdnVal EnvVal FileVal EtcdVal]))
@@ -16,7 +17,7 @@
                       (f)))
 
 (deftest test-read-etcd
-  (with-redefs [etcd/get {"greeting" (pr-str "hello")}]
+  (with-redefs [etcd/get {"greeting" "hello"}]
     (testing "EtcdVal for extant variable."
       (let [name  "greeting"
             value "hello"
@@ -149,7 +150,7 @@
       (is (instance? EdnVal ev))
       (is (nil? (extract ev)))
       (is (not (provided? ev)))))
-  (testing "EdnVal recurses for extant environment variable."
+  (testing "EdnVal walks for extant environment variable."
     (let [name (env-var-name)
           value (System/getenv name)
           source (str "{:foo 123 :bar (#{[{:baz #config/env " (pr-str name) "}]})}")
@@ -158,7 +159,7 @@
       (is (instance? EdnVal ev))
       (is (= value (extract ev)))
       (is (provided? ev))))
-  (testing "EdnVal recurses for missing environment variable."
+  (testing "EdnVal walks for missing environment variable."
     (let [name (missing-env-var-name)
           source (str "{:foo 123 :bar (#{[{:baz #config/env " (pr-str name) "}]})}")
           value   {:foo 123 :bar (list #{[{:baz nil}]})}
@@ -169,12 +170,11 @@
 
 (defmacro with-source [config & body]
   `(with-redefs [source (atom ~config)]
+     (config.repl/clear-cache!)
      ~@body))
 
 (deftest test-defconfig
   (testing "Without config entry."
-    (testing "Error on required."
-      (is (thrown? Exception (defconfig ^:required req))))
     (testing "No default val, no docstring."
       (is (thrown? ExceptionInfo (defconfig aaa))))
     (testing "With default, no docstring."
@@ -208,7 +208,10 @@
     (with-source {`eee :config `fff :config `ggg :config `hhh :config}
       (testing "No default val, no docstring"
         (defconfig eee)
-        (is (= :config @eee)))
+        (is (= :config @eee))
+        (testing "Later the config disappears"
+          (with-source {}
+            (is (thrown? ExceptionInfo @eee)))))
       (testing "With default, no docstring"
         (defconfig fff :default)
         (is (= :config @fff)))
@@ -243,30 +246,11 @@
           (is (not (contains? @non-defaulted `hhh)))
           (is (= :default3 (@defaults `hhh))))))))
 
-(deftest test-defconfig!
+(deftest test-metadata
   (testing "Preserves metadata"
     (with-source {`req1 :config}
-      (defconfig! ^{:doc "foobar"} req1)
-      (is (-> #'req1 meta :required))
-      (is (= "foobar" (-> #'req1 meta :doc)))))
-  (testing "No error when value provided"
-    (with-source {`req2 :config}
-      (defconfig! req2)
-      (is (-> #'req2 meta :required))))
-  (testing "Error when no value provided"
-    (is (thrown? Exception (defconfig! req3))))
-  (testing "Recursive extraction"
-    (testing "no error when value provided"
-      (let [n (env-var-name)
-            value (System/getenv n)]
-        (with-source {`req4 {:foo (read-env n)}}
-          (defconfig! req4)
-          (is (= {:foo value} @req4))
-          (is (-> #'req4 meta :required)))))
-    (testing "error when no value provided"
-      (let [n (missing-env-var-name)]
-        (with-source {`req5 {:foo (read-env n)}}
-          (is (thrown? Exception (defconfig! req5))))))))
+      (defconfig ^{:doc "foobar"} req1)
+      (is (= "foobar" (-> #'req1 meta :doc))))))
 
 (deftest test-validate
   (testing "Tests must be a vector"

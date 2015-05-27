@@ -246,12 +246,12 @@
 
 (declare deref-config-val)
 
-(deftype ConfigValDefault [qname required default]
+(deftype ConfigValDefault [qname default]
   IDeref
   (deref [this]
     (deref-config-val this)))
 
-(deftype ConfigVal [qname required]
+(deftype ConfigVal [qname]
   IDeref
   (deref [this]
     (deref-config-val this)))
@@ -270,13 +270,11 @@
       (instance? ConfigValDefault config-val)
       (.default config-val)
 
-      (.required config-val)
-      (throw (ex-info "Missing required value for config var" {:qualified-name qname}))
-
       :else
-      (throw (ex-info "Config var not provided and no default specified"
-                      {:qualified-name qname
-                       :provided (get-val @source qname)})))))
+      (when (not generating?)
+          (throw (ex-info "Config var not provided and no default specified"
+                          {:qualified-name qname
+                           :provided (get-val @source qname)}))))))
 
 (defn check-presence [config-val]
   (when (allowed-to-deref?)
@@ -285,10 +283,9 @@
 (defn defconfig* [name & {:keys [doc default-val] :as opts}]
   (let [qname (var-symbol name)
         default? (contains? opts :default-val)
-        required? (-> name meta :required)
         config-val (if default?
-                  (ConfigValDefault. qname required? default-val)
-                  (ConfigVal. qname required?))
+                  (ConfigValDefault. qname default-val)
+                  (ConfigVal. qname))
         qname' `(quote ~qname)]
     `(do
        (initialize!)
@@ -314,8 +311,6 @@
    at load-time by this library.
 
    The following additional metadata is supported:
-     :required - When true, an exception will be thrown if no default nor
-                 configured value is provided.
      :validate - A vector of alternating single-arity predicates and error
                  messages. After a value is set on the var, an exception will be
                  thrown when a predicate, passed the set value, yields false.
@@ -327,8 +322,3 @@
    (defconfig* name :default-val default-val))
   ([name doc default-val]
    (defconfig* name :doc doc :default-val default-val)))
-
-(defmacro defconfig!
-  "Equivalent to (defconfig ^:required ...)."
-  [name]
-  `(defconfig ~(vary-meta name assoc :required true)))

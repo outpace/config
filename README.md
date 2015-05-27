@@ -53,11 +53,13 @@ com.example/secret-edn     #config/edn #config/file "secret_key.edn"
 
 As shown above, custom data-reader tags can be used to [pull values from external sources](#external-config-values).
 
-The configuration EDN map is provided to an application in one of the following ways:
+The configuration is provided to an application in one of the following ways:
 
 1. A `config.edn` file in the current working directory.
-2. A `config.edn` java system property (e.g., a command line arg `-Dconfig.edn=...`). The value can be any string consumable by [`clojure.java.io/reader`](http://clojure.github.io/clojure/clojure.java.io-api.html#clojure.java.io/reader).
-3. Setting `outpace.config.bootstrap/explicit-config-source` to any non-nil value consumable by [`clojure.java.io/reader`](http://clojure.github.io/clojure/clojure.java.io-api.html#clojure.java.io/reader).
+2. A `config.edn` java system property (e.g., a command line arg `-Dconfig.edn=...`). The value can be anything consumable by [`clojure.java.io/reader`](http://clojure.github.io/clojure/clojure.java.io-api.html#clojure.java.io/reader).
+3. A `config.etcd` java system property url (e.g., `-Dconfig.etcd=http://localhost:4000`) may be provided to allow etcd lookup for external values.
+4. The primary source of configuration will be etcd if you include `config.etcd` and omit `config.edn`.
+5. Setting `outpace.config/source` to any `outpace.config/Source`. See `outpace.config.repl/set-source-edn!`.
 
 The `:profiles` entry of your `project.clj` file can be used to set the system property for an environment-specific configuration EDN file:
 
@@ -74,13 +76,20 @@ Declaring config vars is straightforward:
 ```clojure
 (require '[outpace.config :refer [defconfig]])
 
-(defconfig my-var)
+(defconfig the-answer)
+;; not provided? -> exception
+;; derefed? -> don't get here
+;; is provided -> 58
+;; later it is not provided
+;; derefed? -> exception
 
-(defconfig var-with-default 42)
+(defconfig the-answer 42)
+;; not provided? 42
+;; provided? 58
+;; derefed? either 58 or 42
 
-(defconfig ^:dynamic *rebindable-var*)
-
-(defconfig ^:required required-var)
+;; meta-data is preserved
+(defconfig ^:private the-secret-answer)
 
 (defconfig ^{:validate [number? "Must be a number."
                         even?   "Must be even."]}
@@ -88,10 +97,9 @@ Declaring config vars is straightforward:
 ```
 
 As shown above, the `defconfig` form supports anything a regular `def` form does, as well as the following metadata:
-- `:required` When true, an exception will be thrown if no default nor configured value is provided. See also `defconfig!`
 - `:validate` A vector of alternating single-arity predicates and error messages. After a value is set on the var, an exception will be thrown when a predicate, passed the set value, yields false.
 
-The `outpace.config` namespace includes the current state of the configuration, and while it can be used by code to explicitly pull config values, **this is strongly discouraged**; just use `defconfig`.
+The `outpace.config` namespace includes the current state of the configuration, and while it can be used by code to explicitly pull config values, this is discouraged; just use `defconfig`.
 
 
 ## External Config Values
@@ -103,6 +111,7 @@ The provided data-readers' tags are:
 - `#config/env` Tags a string, interpreted as the name of an environment variable, and yields the string value of the environment variable. If the environment does not have that entry, then the var will use its default value or remain unbound.
 - `#config/file` Tags a string, interpreted as a path to a file, and yields the string contents of the file. If the file does not exist, then the var will use its default value or remain unbound.
 - `#config/edn` Tags a string, interpreted as a single EDN-formatted object, and yields the read object.  When composed with `#config/env` or `#config/file`, if the external value is not provided, then the var will use its default value or remain unbound.
+- `#config/etcd` Tags a string, interpreted as a key to lookup a value in etcd.
 
 [Custom data-readers](http://clojure.org/reader#The Reader--Tagged Literals) whose tag namespace is `config` will be automatically loaded during config initialization. See `outpace.config/read-env` for an example of how to properly implement a custom data-reader.
 
@@ -123,46 +132,13 @@ Alternately, one can just invoke `lein config` by adding the following to `proje
 :aliases {"config" ["run" "-m" "outpace.config.generate"]}
 ```
 
-The generator can take an optional `:strict` flag (e.g., `lein config :strict`) that will result in an exception after file generation if there are any config vars with neither a default value nor configured value. This can be used to provide feedback to automated build systems.
-
-The following is an example of a generated `config.edn` file:
-
-```clojure
-{
-
-;; UNBOUND CONFIG VARS:
-
-; This is the docstring for the 'foo' var. This
-; var does not have a default value.
-#_com.example/foo
-
-
-;; UNUSED CONFIG ENTRIES:
-
-com.example/bar 123
-
-
-;; CONFIG ENTRIES:
-
-; The docstring for aaa.
-com.example/aaa :configured-aaa
-
-; The docstring for bbb. This var has a default value.
-com.example/bbb :configured-bbb #_:default-bbb
-
-; The docstring for ccc. This var has a default value.
-#_com.example/ccc #_:default-ccc
-
-}
-```
-
-The first section lists commented-out config vars that do not have a default value nor configured value, thus will be unbound at runtime. If a config value is provided, these entries will be re-categorized after regeneration.
-
-The second section lists config entries that have no corresponding config var. This may happen after code change, or when a dependent library has been removed. If the config var reappears, these entries will be re-categorized after regeneration.
-
-The third section lists all config vars used by the system, and their respective values.  For reference purposes, commented-out default values will be included after the configured value.  Likewise, commented-out entries will be included when their default values are used.
-
 ## Change Log
+
+### v1.0.0
+- Breaking change: config must be derefed.
+- Breaking change: no more defconfig! Config is required unless a default is provided.
+- Etcd config source
+- Etcd external reader tag
 
 ### v0.9.0
 - A required config (e.g. defconfig!) will not cause an error when running the generator.
