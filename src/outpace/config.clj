@@ -79,7 +79,7 @@
 (defrecord EtcdVal [name]
   Extractable
   (extract [_]
-    (extract (edn/read-string {:readers *data-readers*} (etcd/get name))))
+    (extract (etcd/get name)))
   Optional
   (provided? [_]
     (not (nil? (etcd/get name)))))
@@ -144,9 +144,7 @@
 (defrecord EtcdSource [host]
   Source
   (get-val [_ qname]
-    (let [uri (URI. host)]
-      (etcd/connect! (.getHost uri) (.getPort uri)))
-    (->EtcdVal qname)))
+    (read-edn (->EtcdVal qname))))
 
 (extend-protocol Source
   clojure.lang.ILookup
@@ -158,24 +156,15 @@
 (defn find-config-source! []
   (let [edn-path (System/getProperty "config.edn")
         etcd-host (System/getProperty "config.etcd")]
+    (when etcd-host
+      (let [uri (URI. etcd-host)]
+        (etcd/connect! (.getHost uri) (.getPort uri))))
     (reset! source
             (cond
-              (and edn-path etcd-host)
-              (throw (ex-info "Can't provide config.edn and config.etcd system properties"
-                              {"config.edn" edn-path
-                               "config.etcd" etcd-host}))
-
-              edn-path
-              (->EdnSource edn-path)
-
-              etcd-host
-              (->EtcdSource etcd-host)
-
-              (.exists (io/file "config.edn"))
-              (->EdnSource "config.edn")
-
-              :else
-              {}))))
+              edn-path (->EdnSource edn-path)
+              etcd-host (->EtcdSource etcd-host)
+              (.exists (io/file "config.edn")) (->EdnSource "config.edn")
+              :else {}))))
 
 (defn initialize! []
   (when-not @source
