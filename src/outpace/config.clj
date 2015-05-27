@@ -141,6 +141,10 @@
   (get-val [_ qname]
     (get (extract (read-edn (->FileVal path))) qname)))
 
+(defn ensure-etcd-connection [uri]
+  (when-let [uri' (some-> uri (URI.))]
+    (etcd/connect! (.getHost uri') (.getPort uri'))))
+
 (defrecord EtcdSource [host]
   Source
   (get-val [_ qname]
@@ -155,14 +159,12 @@
 
 (defn find-config-source! []
   (let [edn-path (System/getProperty "config.edn")
-        etcd-host (System/getProperty "config.etcd")]
-    (when etcd-host
-      (let [uri (URI. etcd-host)]
-        (etcd/connect! (.getHost uri) (.getPort uri))))
+        etcd-uri (System/getProperty "config.etcd")]
+    (ensure-etcd-connection etcd-uri)
     (reset! source
             (cond
               edn-path (->EdnSource edn-path)
-              etcd-host (->EtcdSource etcd-host)
+              etcd-uri (->EtcdSource etcd-uri)
               (.exists (io/file "config.edn")) (->EdnSource "config.edn")
               :else {}))))
 
