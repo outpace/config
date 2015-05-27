@@ -187,13 +187,17 @@
      (lookup* qname)
      default-val)))
 
-(def one-minute (* 60 1000))
+(def lookup-ttl-seconds
+  (or
+    (some-> (System/getProperty "config.ttl-seconds")
+            (Integer/parseInt)
+            (* 1000))
+    (* 60 1000)))
 
-(def lookup (memo/ttl lookup* :ttl/threshold (or
-                                               (some-> (System/getProperty "config.ttl-seconds")
-                                                       (Integer/parseInt)
-                                                       (* 1000))
-                                               one-minute)))
+(def lookup
+  (if (pos? lookup-ttl-seconds)
+    (memo/ttl lookup* :ttl/threshold lookup-ttl-seconds)
+    lookup*))
 
 (def defaults
   "A ref containing the map of symbols for the loaded defconfig vars to their
