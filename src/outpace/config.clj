@@ -274,7 +274,7 @@
       :else
       (throw (ex-info "Config var not provided and no default specified"
                       {:qualified-name qname
-                       :provided "?" #_(get (read-config) qname)})))))
+                       :provided (get-val @source qname)})))))
 
 (defn check-presence [config-val]
   (when (allowed-to-deref?)
