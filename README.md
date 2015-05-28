@@ -57,7 +57,7 @@ The configuration is provided to an application in one of the following ways:
 
 1. A `config.edn` file in the current working directory.
 2. A `config.edn` java system property (e.g., a command line arg `-Dconfig.edn=...`). The value can be anything consumable by [`clojure.java.io/reader`](http://clojure.github.io/clojure/clojure.java.io-api.html#clojure.java.io/reader).
-3. A `config.etcd` java system property url (e.g., `-Dconfig.etcd=http://localhost:4000`) may be provided to allow etcd lookup for external values.
+3. A `config.etcd` java system property url (e.g., `-Dconfig.etcd=http://localhost:4000`) may be provided to allow etcd lookup for external values. A path can be provided in the url to set a prefix used by all etcd lookups.
 4. The primary source of configuration will be etcd if you include `config.etcd` and omit `config.edn`.
 5. Setting `outpace.config/source` to any `outpace.config/Source`. See `outpace.config.repl/set-source-edn!`.
 
