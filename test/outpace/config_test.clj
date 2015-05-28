@@ -1,20 +1,36 @@
 (ns outpace.config-test
   (:use clojure.test
         outpace.config)
-  (:import clojure.lang.ExceptionInfo
-           java.io.File
-           outpace.config.EdnVal
-           outpace.config.EnvVal
-           outpace.config.FileVal))
+  (:require [etcd-clojure.core :as etcd]
+            [outpace.config.repl :as config.repl])
+  (:import [clojure.lang ExceptionInfo]
+           [java.io File FileNotFoundException]
+           [outpace.config EdnVal EnvVal FileVal EtcdVal]))
 
 (defn unmap-non-fn-vars [ns]
   (doseq [[sym var] (ns-interns ns)]
     (when-not (fn? @var)
       (ns-unmap ns sym))))
 
-(use-fixtures :each (fn [f]
+(use-fixtures :each (fn unmap-vars-fixture [f]
                       (unmap-non-fn-vars *ns*)
                       (f)))
+
+(deftest test-read-etcd
+  (with-redefs [etcd/get {"greeting" "hello"}]
+    (testing "EtcdVal for extant variable."
+      (let [name  "greeting"
+            value "hello"
+            ev    (read-etcd name)]
+        (is (instance? EtcdVal ev))
+        (is (= value (extract ev)))
+        (is (provided? ev))))
+    (testing "EtcdVal for missing variable."
+      (let [name "missing"
+            ev   (read-etcd name)]
+        (is (instance? EtcdVal ev))
+        (is (nil? (extract ev)))
+        (is (not (provided? ev)))))))
 
 (deftest test-EnvVal
   (let [name     "name"
@@ -57,21 +73,20 @@
 
 (deftest test-FileVal
   (let [path     "path"
-        contents "contents"
-        exists?  true
-        fv       (->FileVal path contents exists?)]
+        contents ""
+        exists?  false
+        fv       (->FileVal path)]
     (testing "FileVal fields"
-      (is (= path (:path fv)))
-      (is (= contents (:contents fv)))
-      (is (= exists? (:exists? fv))))
+      (is (= path (:path fv))))
     (testing "FileVal protocol implementations"
-      (is (= contents (extract fv)))
-      (is (= exists? (provided? fv))))
+      (is (satisfies? Extractable fv))
+      (is (satisfies? Optional fv)))
     (testing "FileVal edn-printing"
       (is (= (str "#config/file " (pr-str path)) (pr-str fv))))))
 
 (deftest test-read-file
-  (let [file     (File/createTempFile "test-read-file" ".txt")
+  (let [file     (doto (File/createTempFile "test-read-file" ".txt")
+                   (.deleteOnExit))
         path     (.getPath file)
         contents "contents"]
     (spit file contents)
@@ -84,7 +99,7 @@
     (testing "FileVal for missing file."
       (let [fv (read-file path)]
         (is (instance? FileVal fv))
-        (is (nil? (extract fv)))
+        (is (thrown? FileNotFoundException (extract fv)))
         (is (not (provided? fv)))))))
 
 (deftest test-EdnVal
@@ -122,7 +137,7 @@
           ev (read-edn source)]
       (is (instance? EdnVal ev))
       (is (nil? (extract ev)))
-      (is (provided? ev))))
+      (is (not (provided? ev)))))
   (testing "EdnVal of provided source"
     (let [source (extractable "{:foo 123}" true)
           ev (read-edn source)]
@@ -135,7 +150,7 @@
       (is (instance? EdnVal ev))
       (is (nil? (extract ev)))
       (is (not (provided? ev)))))
-  (testing "EdnVal recurses for extant environment variable."
+  (testing "EdnVal walks for extant environment variable."
     (let [name (env-var-name)
           value (System/getenv name)
           source (str "{:foo 123 :bar (#{[{:baz #config/env " (pr-str name) "}]})}")
@@ -144,7 +159,7 @@
       (is (instance? EdnVal ev))
       (is (= value (extract ev)))
       (is (provided? ev))))
-  (testing "EdnVal recurses for missing environment variable."
+  (testing "EdnVal walks for missing environment variable."
     (let [name (missing-env-var-name)
           source (str "{:foo 123 :bar (#{[{:baz #config/env " (pr-str name) "}]})}")
           value   {:foo 123 :bar (list #{[{:baz nil}]})}
@@ -153,110 +168,89 @@
       (is (= value (extract ev)))
       (is (not (provided? ev))))))
 
+(defmacro with-source [config & body]
+  `(with-redefs [source (atom ~config)]
+     (config.repl/clear-cache!)
+     ~@body))
 
 (deftest test-defconfig
   (testing "Without config entry."
-    (testing "Error on required."
-      (is (thrown? Exception (defconfig ^:required req))))
     (testing "No default val, no docstring."
-      (defconfig aaa)
-      (is (not (bound? #'aaa))))
+      (is (thrown? ExceptionInfo (defconfig aaa))))
     (testing "With default, no docstring."
       (defconfig bbb :default)
-      (is (= :default bbb)))
+      (is (= :default @bbb)))
     (testing "With default and docstring."
       (defconfig ccc "doc" :default)
-      (is (= :default ccc))
+      (is (= :default @ccc))
       (is (= "doc" (:doc (meta #'ccc)))))
     (testing "Repeat defconfigs yield consistent state."
-      (defconfig ddd)
+      (defconfig ddd "ignore me")
       (testing "Including default."
         (defconfig ddd :default)
         (is (nil? (:doc (meta #'ddd))))
-        (is (= :default ddd))
+        (is (= :default @ddd))
         (is (not (contains? @non-defaulted `ddd)))
         (is (contains? @defaults `ddd)))
       (testing "Including docstring."
         (defconfig ddd "doc" :default2)
         (is (= "doc" (:doc (meta #'ddd))))
-        (is (= :default2 ddd))
+        (is (= :default2 @ddd))
         (is (not (contains? @non-defaulted `ddd)))
         (is (contains? @defaults `ddd)))
       (testing "Omitting docstring."
         (defconfig ddd :default3)
         (is (nil? (:doc (meta #'ddd))))
-        (is (= :default3 ddd))
-        (is (not (contains? @non-defaulted `ddd)))
-        (is (contains? @defaults `ddd)))
-      (testing "Omitting default does not remove it, just like def."
-        (defconfig ddd)
-        (is (nil? (:doc (meta #'ddd))))
-        (is (= :default3 ddd))
+        (is (= :default3 @ddd))
         (is (not (contains? @non-defaulted `ddd)))
         (is (contains? @defaults `ddd)))))
   (testing "With config entry"
-    (with-redefs [config (delay {`eee :config `fff :config `ggg :config `hhh :config})]
+    (with-source {`eee :config `fff :config `ggg :config `hhh :config}
       (testing "No default val, no docstring"
         (defconfig eee)
-        (is (= :config eee)))
+        (is (= :config @eee))
+        (testing "Later the config disappears"
+          (with-source {}
+            (is (thrown? ExceptionInfo @eee)))))
       (testing "With default, no docstring"
         (defconfig fff :default)
-        (is (= :config fff)))
+        (is (= :config @fff)))
       (testing "With default and docstring"
         (defconfig ggg "doc" :default)
-        (is (= :config ggg))
+        (is (= :config @ggg))
         (is (= "doc" (:doc (meta #'ggg)))))
       (testing "Repeat defconfigs yield consistent state."
         (defconfig hhh)
         (testing "Including default."
           (defconfig hhh :default)
           (is (nil? (:doc (meta #'hhh))))
-          (is (= :config hhh))
+          (is (= :config @hhh))
           (is (not (contains? @non-defaulted `hhh)))
           (is (= :default (@defaults `hhh))))
         (testing "Including docstring."
           (defconfig hhh "doc" :default2)
           (is (= "doc" (:doc (meta #'hhh))))
-          (is (= :config hhh))
+          (is (= :config @hhh))
           (is (not (contains? @non-defaulted `hhh)))
           (is (= :default2 (@defaults `hhh))))
         (testing "Omitting docstring."
           (defconfig hhh :default3)
           (is (nil? (:doc (meta #'hhh))))
-          (is (= :config hhh))
+          (is (= :config @hhh))
           (is (not (contains? @non-defaulted `hhh)))
           (is (= :default3 (@defaults `hhh))))
         (testing "Omitting default does not remove it, just like def."
           (defconfig hhh)
           (is (nil? (:doc (meta #'hhh))))
-          (is (= :config hhh))
+          (is (= :config @hhh))
           (is (not (contains? @non-defaulted `hhh)))
           (is (= :default3 (@defaults `hhh))))))))
 
-(deftest test-defconfig!
+(deftest test-metadata
   (testing "Preserves metadata"
-    (with-redefs [config (delay {`req1 :config})]
-      (defconfig! ^{:doc "foobar"} req1)
-      (is (-> #'req1 meta :required))
-      (is (= "foobar" (-> #'req1 meta :doc)))))
-  (testing "No error when value provided"
-    (with-redefs [config (delay {`req2 :config})]
-      (defconfig! req2)
-      (is (-> #'req2 meta :required))))
-  (testing "Error when no value provided"
-    (is (thrown? Exception (defconfig! req3))))
-  (testing "Recursive extraction"
-    (testing "no error when value provided"
-      (let [name (env-var-name)
-            value (System/getenv name)]
-        (with-redefs [config (delay {`req4 {:foo (read-env name)}})]
-          (defconfig! req4)
-          (is (= {:foo value} req4))
-          (is (-> #'req4 meta :required)))))
-    (testing "error when no value provided"
-      (let [name (missing-env-var-name)]
-        (with-redefs [config (delay {`req5 {:foo (read-env name)}})]
-          (is (thrown? Exception (defconfig! req5))))))))
+    (with-source {`req1 :config}
+      (defconfig ^{:doc "foobar"} req1)
+      (is (= "foobar" (-> #'req1 meta :doc))))))
 
 (deftest test-validate
   (testing "Tests must be a vector"
@@ -278,26 +272,34 @@
 
 (deftest test-defconfig-validate
   (testing "without config-value"
-    (testing "without default-value"
-      (testing "validate not applied when no value provided"
-        (is (defconfig ^{:validate [(constantly false) "should not happen"]} foo))))
     (testing "with default-value"
       (testing "no exception when default-value is valid"
         (is (defconfig ^{:validate [even? "boom"]} foo 4)))
       (testing "exception when default-value is invalid"
-         (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo 5))))))
-  (with-redefs [config (delay {`foo 5})]
-    (testing "with config-value"
+        (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo 5))))))
+  (testing "with config-value"
+    (with-source {`foo 5}
       (testing "without default-value"
-       (testing "no exception when configured value is valid"
-         (is (defconfig ^{:validate [odd? "boom"]} foo)))
-       (testing "exception when configured value is invalid"
-         (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo)))))
+        (testing "no exception when configured value is valid"
+          (is (defconfig ^{:validate [odd? "boom"]} foo)))
+        (testing "exception when configured value is invalid"
+          (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo)))))
       (testing "with default-value"
         (testing "no exception when configured value is valid, but default isn't"
-         (is (defconfig ^{:validate [odd? "boom"]} foo 4)))
+          (is (defconfig ^{:validate [odd? "boom"]} foo 4)))
         (testing "exception when configured value is invalid, but default isn't"
           (is (thrown? Exception (defconfig ^{:validate [even? "boom"]} foo 4))))))))
+
+(deftest test-defconfig-with-lookup
+  (testing "lookup as default"
+    (with-source {'bananas "oranges"}
+      (defconfig apples #config/lookup "bananas")
+      (is (= "oranges" @apples))))
+  (testing "lookup in config"
+    (with-source {'red "blue"
+                  `green #config/lookup "red"}
+      (defconfig green)
+      (is (= "blue" @green)))))
 
 (deftest test-extract
   (testing "recursively extract"

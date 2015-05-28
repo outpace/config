@@ -8,10 +8,8 @@
             [clojure.stacktrace :refer [print-cause-trace]]
             [clojure.string :as str]
             [clojure.tools.namespace.repl :as nsr]
-            [outpace.config :as conf]
-            [outpace.config.bootstrap :as boot]))
-
-(def ^:private nl-str (println-str))
+            [outpace.config :as conf])
+  (:import [outpace.config EdnSource]))
 
 (defn- doc-str [sym]
   (if-let [doc (try (-> sym find-var meta :doc) (catch Exception e nil))]
@@ -29,143 +27,86 @@
           doc-lines (cons line (map #(subs % trim-len) more))]
       (apply str (interleave (repeat "; ")
                              doc-lines
-                             (repeat nl-str))))
+                             (repeat \newline))))
     ""))
 
-(defn pretty-str [val]
+(defn- pretty-str [val]
   (str/trim-newline
     (with-out-str
       (pprint val))))
-
-(defn- unbound-str [sym]
-  (str (doc-str sym)
-       "#_" (pr-str sym) nl-str))
 
 (defn- split? [& strs]
   (boolean (or (some (fn [^String s] (.contains s "\n")) strs)
                (< 80 (apply + (dec (count strs)) (map count strs))))))
 
-(defn- entry-str
-  ([sym val]
-    (let [sym-str (pr-str sym)
-          val-str (pr-str val)
-          val-pty (pretty-str val)]
-      (if (split? sym-str val-str)
-        (str (doc-str sym)
-             sym-str nl-str
-             (if (split? val-str)
-               val-pty
-               val-str) nl-str)
-        (str (doc-str sym)
-             sym-str " " val-str nl-str))))
-  ([sym val default]
-    (let [sym-str (pr-str sym)
-          val-str (pr-str val)
-          def-str (str "#_" (pr-str default))
-          val-pty (pretty-str val)
-          def-pty (str "#_" (pretty-str default))]
-      (if (split? sym-str val-str def-str)
-        (str (doc-str sym)
-             sym-str nl-str
-             (if (split? val-str)
-               val-pty
-               val-str) nl-str
-             (if (split? def-str)
-               def-pty
-               def-str) nl-str)
-        (str (doc-str sym)
-             sym-str " " val-str " " def-str nl-str)))))
+(defn- join [& strs]
+  (str/join (if (apply split? strs) \newline \space)
+            strs))
 
-(defn- default-str [sym default]
-  (let [sym-str (str "#_" (pr-str sym))
-        def-str (str "#_" (pr-str default))
-        def-pty (str "#_" (pretty-str default))]
-    (if (split? sym-str def-str)
-      (str (doc-str sym)
-           sym-str nl-str
-           (if (split? def-str)
-             def-pty
-             def-str) nl-str)
-      (str (doc-str sym)
-           sym-str " " def-str nl-str))))
+(defn- unprovided-entry [sym]
+  (str "#_" (pr-str sym)))
 
-(defn- generate-config []
-  (let [config-map      @conf/config
+(defn- val-entry [sym val]
+  (join (pr-str sym) (pretty-str val)))
+
+(defn- val-default-entry [sym val default]
+  (join (pr-str sym)
+               (pretty-str val)
+               (str "#_" (pretty-str default))))
+
+(defn- default-entry [sym default]
+  (join
+   (str "#_" (pr-str sym))
+   (str "#_" (pretty-str default))))
+
+(defn- section [syms title sym->entry]
+  (when (seq syms)
+    (->> (for [sym syms]
+           (str (doc-str sym) (sym->entry sym)))
+         (cons (format ";; %s:" title))
+         (mapcat str/split-lines)
+         (str/join "\n "))))
+
+(defn- generate-sections []
+  (let [config-map      (when (instance? EdnSource @conf/source)
+                          (conf/extract (conf/read-edn (conf/->FileVal (:path @conf/source)))))
         default-map     @conf/defaults
         nodefault-set   @conf/non-defaulted
         config-keyset   (set (keys config-map))
         default-keyset  (set (keys default-map))
         available-set   (set/union config-keyset default-keyset)
         wanted-set      (set/union nodefault-set default-keyset)
-        unbound-set     (into (sorted-set) (set/difference nodefault-set available-set))
+        unprovided-set  (into (sorted-set) (set/difference nodefault-set available-set))
         unused-set      (into (sorted-set) (set/difference available-set wanted-set))
         used-set        (into (sorted-set) (set/intersection available-set wanted-set))]
-    (with-out-str
-      (println "{")
-      (when (seq unbound-set)
-        (println)
-        (println ";; UNBOUND CONFIG VARS:")
-        (println)
-        (print (->> unbound-set
-                 (map unbound-str)
-                 (interpose nl-str)
-                 (apply str)))
-        (println))
-      (when (seq unused-set)
-        (println)
-        (println ";; UNUSED CONFIG ENTRIES:")
-        (println)
-        (print (->> unused-set
-                 (map (fn [sym]
-                        (entry-str sym (get config-map sym))))
-                 (interpose nl-str)
-                 (apply str)))
-        (println))
-      (when (seq used-set)
-        (println)
-        (println ";; CONFIG ENTRIES:")
-        (println)
-        (print (->> used-set
-                 (map (fn [sym]
-                        (if (contains? config-keyset sym)
-                          (if (contains? default-map sym)
-                            (entry-str sym (get config-map sym) (get default-map sym))
-                            (entry-str sym (get config-map sym)))
-                          (default-str sym (get default-map sym)))))
-                 (interpose nl-str)
-                 (apply str)))
-        (println))
-      (println "}"))))
+    [(section unprovided-set "Unprovided" unprovided-entry)
+     (section unused-set "Unused"
+              (fn unused-str [sym]
+                (val-entry sym (get config-map sym))))
+     (section used-set "Existing"
+              (fn used-str [sym]
+                (if (contains? config-keyset sym)
+                  (if (contains? default-map sym)
+                    (val-default-entry sym (get config-map sym) (get default-map sym))
+                    (val-entry sym (get config-map sym)))
+                  (default-entry sym (get default-map sym)))))]))
+
+(defn- generate-config []
+  (str "{" (str/join "\n\n " (remove nil? (generate-sections))) "}\n"))
 
 (defn- generate-config-file []
-  (let [dest (or (boot/find-config-source) "config.edn")]
+  (let [dest "config.generated.edn"]
     (println "Generating" dest)
     (spit dest (generate-config))))
 
-(defn- generate-config-file-strict []
-  (generate-config-file)
-  (when-let [unbound-set (seq (conf/unbound))]
-    (throw (Exception. (str "Generated a config EDN file with unbound config vars: " (pr-str (sort unbound-set)))))))
-
 (defn -main
   "Generates a config EDN file from the defconfig entries on the classpath.
-   Writes to the configuration source if provided, otherwise to 'config.edn'.
-
-   The following flags are supported:
-     :strict Errors on config vars with neither a default nor configured value"
-  [& flags]
+  Writes to the configuration source if provided, otherwise to 'config.edn'."
+  [& args]
   (println "Loading namespaces")
   (with-redefs [conf/generating? true]
-    (let [strict? (some #{":strict"} flags)
-          config-file (boot/find-config-source)]
-      (when (and config-file (not (.exists (io/file config-file))))
-        ;; When an explicit config-source is provided, make sure the file exists
-        ;; before loading the config ns, otherwise it would be considered an error.
-        (spit config-file "{}"))
-      (binding [*e nil]
-        (nsr/refresh :after (if strict?
-                              `generate-config-file-strict
-                              `generate-config-file))
-        (when *e
-          (print-cause-trace *e)))))
+    (binding [*e nil]
+      (nsr/refresh :after `generate-config-file)
+      (when *e
+        (print-cause-trace *e))))
   (shutdown-agents))

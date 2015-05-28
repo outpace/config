@@ -1,8 +1,24 @@
 (ns outpace.config
-  (:require [clojure.edn :as edn]
-            [clojure.java.io :as io]
-            [clojure.set :as set]
-            [outpace.config.bootstrap :refer [find-config-source]]))
+  (:require
+    [clojure.edn :as edn]
+    [clojure.core.memoize :as memo]
+    [clojure.java.io :as io]
+    [clojure.set :as set]
+    [etcd-clojure.core :as etcd])
+  (:import
+    [clojure.lang IDeref]
+    [java.net URI]))
+
+(defn load-data-readers
+  "Loads the namespaces of data reader Vars whose reader tag symbol has the
+   'config' namespace."
+  []
+  (doseq [lib-sym (->> *data-readers*
+                    (filter #(-> % key namespace #{"config"}))
+                    (map #(-> % val meta ^clojure.lang.Namespace (:ns) .name))
+                    (distinct))
+          :when (not= 'outpace.config lib-sym)]
+    (require lib-sym)))
 
 (def generating? false)
 
@@ -30,7 +46,7 @@
 
 (extend-protocol Optional
   nil
-  (provided? [_] true)
+  (provided? [_] false)
   Object
   (provided? [x]
     (cond
@@ -60,11 +76,39 @@
     (->EnvVal name (System/getenv name) (contains? (System/getenv) name))
     (throw (IllegalArgumentException. (str "Argument to #config/env must be a string: " (pr-str name))))))
 
-(defrecord FileVal [path contents exists?]
+(defonce etcd-prefix (atom nil))
+
+(defn etcd-get [name]
+  (etcd/get
+    (if-let [prefix @etcd-prefix]
+      (str prefix "/" name)
+      name)))
+
+(defrecord EtcdVal [name]
   Extractable
-  (extract [_] contents)
+  (extract [_]
+    (extract (etcd-get name)))
   Optional
-  (provided? [_] exists?))
+  (provided? [_]
+    (not (nil? (etcd-get name)))))
+
+(defmethod print-method EtcdVal [^EtcdVal ev ^java.io.Writer w]
+  (.write w (str "#config/etcd " (pr-str (.name ev)))))
+
+(defn read-etcd
+  "Returns an EtcdVal identified by the specified string name."
+  [name]
+  (if (and name (string? name))
+    (->EtcdVal name)
+    (throw (IllegalArgumentException. (str "Argument to #config/etcd must be a string: " (pr-str name))))))
+
+(defrecord FileVal [path]
+  Extractable
+  (extract [_]
+    (slurp (io/file path)))
+  Optional
+  (provided? [_]
+    (.exists (io/file path))))
 
 (defmethod print-method FileVal [^FileVal fv ^java.io.Writer w]
   (.write w (str "#config/file " (pr-str (.path fv)))))
@@ -73,11 +117,25 @@
   "Returns a FileVal identified by the specified string path."
   [path]
   (if (and path (string? path))
-    (let [f (io/file path)]
-      (if (.exists f)
-        (->FileVal path (slurp f) true)
-        (->FileVal path nil false)))
+    (->FileVal path)
     (throw (IllegalArgumentException. (str "Argument to #config/file must be a string: " (pr-str path))))))
+
+(declare lookup present?)
+
+(defrecord LookupVal [k]
+  Extractable
+  (extract [_]
+    (extract (lookup k)))
+  Optional
+  (provided? [_]
+    (present? k)))
+
+(defn read-lookup
+  "Returns a LookupVal from a string value."
+  [k]
+  (if (and k (string? k))
+    (->LookupVal (symbol k))
+    (throw (IllegalArgumentException. (str "Argument to #config/lookup must be a string: " (pr-str lookup))))))
 
 (defrecord EdnVal [source value source-provided?]
   Extractable
@@ -97,56 +155,74 @@
         (->EdnVal source (extract read-value) (and (provided? source) (provided? read-value))))
       (throw (IllegalArgumentException. (str "Argument to #config/edn must be a string: " (pr-str source)))))))
 
-(defn valid-key?
-  "Returns true IFF k is acceptable as a key in a configuration map,
-   i.e., a namespaced symbol."
-  [k]
-  (and (symbol? k) (namespace k)))
+(doseq [t [EtcdVal EnvVal FileVal EdnVal]]
+  (.addMethod clojure.pprint/simple-dispatch t (fn [p] (print-method p *out*))))
 
-(defn load-data-readers
-  "Loads the namespaces of data reader Vars whose reader tag symbol has the
-   'config' namespace."
-  []
-  (doseq [lib-sym (->> *data-readers*
-                    (filter #(-> % key namespace #{"config"}))
-                    (map #(-> % val meta ^clojure.lang.Namespace (:ns) .name))
-                    (distinct))
-          :when (not= 'outpace.config lib-sym)]
-    (require lib-sym)))
+(defprotocol Source
+  (get-val [this qname] "docstring"))
 
-(defn read-config
-  "Reads the config EDN map from a source acceptable to clojure.java.io/reader."
-  [source]
-  (load-data-readers)
-  (let [config-map (edn/read-string {:readers *data-readers*} (slurp source))]
-    (when-not (map? config-map)
-      (throw (IllegalArgumentException. (str "Configuration must be an EDN map: " (pr-str config-map)))))
-    (when-let [invalid-keys (seq (remove valid-key? (keys config-map)))]
-      (throw (IllegalArgumentException. (str "Configuration keys must be namespaced symbols: " (pr-str invalid-keys)))))
-    (vary-meta config-map assoc ::source source)))
+(defrecord EdnSource [path]
+  Source
+  (get-val [_ qname]
+    (get (extract (read-edn (->FileVal path))) qname)))
 
-(def config
-  "The delayed map of explicit configuration values."
-  (delay (if-let [source (find-config-source)]
-           (read-config source)
-           {})))
+(defn ensure-etcd-connection [uri]
+  (when-let [uri' (some-> uri (URI.))]
+    (when-let [prefix (.getPath uri')]
+      (reset! etcd-prefix prefix))
+    (etcd/connect! (.getHost uri') (.getPort uri'))))
+
+(defrecord EtcdSource [uri]
+  Source
+  (get-val [_ qname]
+    (read-edn (->EtcdVal qname))))
+
+(extend-protocol Source
+  clojure.lang.ILookup
+  (get-val [this qname]
+    (get this qname)))
+
+(def source (atom nil))
+
+(defn find-config-source! []
+  (let [edn-path (System/getProperty "config.edn")
+        etcd-uri (System/getProperty "config.etcd")]
+    (ensure-etcd-connection etcd-uri)
+    (reset! source
+            (cond
+              edn-path (->EdnSource edn-path)
+              etcd-uri (->EtcdSource etcd-uri)
+              (.exists (io/file "config.edn")) (->EdnSource "config.edn")
+              :else {}))))
+
+(defn initialize! []
+  (when-not @source
+    (load-data-readers)
+    (find-config-source!)))
 
 (defn present?
   "Returns true if a configuration entry exists for the qname and, if an
    Optional value, the value is provided."
   [qname]
-  (and (contains? @config qname)
-       (provided? (get @config qname))))
+  (provided? (get-val @source qname)))
 
-(defn lookup
+(defn lookup*
   "Returns the extracted value if the qname is present, otherwise default-val
    or nil."
-  ([qname]
-    (extract (get @config qname)))
-  ([qname default-val]
-    (if (present? qname)
-      (lookup name)
-      default-val)))
+  [qname]
+  (extract (get-val @source qname)))
+
+(def lookup-ttl-seconds
+  (or
+    (some-> (System/getProperty "config.ttl-seconds")
+            (Integer/parseInt)
+            (* 1000))
+    (* 60 1000)))
+
+(def lookup
+  (if (pos? lookup-ttl-seconds)
+    (memo/ttl lookup* :ttl/threshold lookup-ttl-seconds)
+    lookup*))
 
 (def defaults
   "A ref containing the map of symbols for the loaded defconfig vars to their
@@ -158,20 +234,10 @@
    not have a default value."
   (ref #{}))
 
-(defn unbound
-  "Returns the set of symbols for the defconfig vars with neither a default nor
-   configured value."
-  []
-  (dosync
-    (set/difference @non-defaulted
-                    (set (keys @defaults))
-                    (set (keys @config)))))
-
 (defn var-symbol
   "Returns the namespace-qualified symbol for the var."
-  [v]
-  (symbol (-> v meta :ns ns-name name)
-          (-> v meta :name name)))
+  [name]
+  (symbol (str *ns* "/" name)))
 
 (defn validate
   "Throws an ex-info if, for any predicate in validate-vec, (pred val) is false.
@@ -198,58 +264,85 @@
                        :sym  var-sym
                        :val  val})))))
 
+(defn allowed-to-deref? []
+  (and (not *compile-files*) (not generating?)))
+
+(declare deref-config-val)
+
+(deftype ConfigValDefault [qname default]
+  IDeref
+  (deref [this]
+    (deref-config-val this)))
+
+(deftype ConfigVal [qname]
+  IDeref
+  (deref [this]
+    (deref-config-val this)))
+
+(defn deref-config-val [config-val]
+  (let [qname (.qname config-val)]
+    (cond
+      (not (allowed-to-deref?))
+      (throw (ex-info "Not allowed to deref config var" {:qualified-name qname
+                                                         :compile-files? *compile-files*
+                                                         :generating? generating?}))
+
+      (present? qname)
+      (lookup qname)
+
+      (instance? ConfigValDefault config-val)
+      (extract (.default config-val))
+
+      :else
+      (when (not generating?)
+          (throw (ex-info "Config var not provided and no default specified"
+                          {:qualified-name qname
+                           :provided (get-val @source qname)
+                           :source @source}))))))
+
+(defn check-presence [config-val]
+  (when (allowed-to-deref?)
+    (deref config-val)))
+
+(defn defconfig* [name & {:keys [doc default-val] :as opts}]
+  (let [qname (var-symbol name)
+        default? (contains? opts :default-val)
+        config-val (if default?
+                  (ConfigValDefault. qname default-val)
+                  (ConfigVal. qname))
+        qname' `(quote ~qname)]
+    `(do
+       (initialize!)
+       (check-presence ~config-val)
+
+       (dosync
+         ~(if default?
+            `(do
+               (alter defaults assoc ~qname' ~default-val)
+               (alter non-defaulted disj ~qname'))
+            `(when-not (contains? (ensure defaults) ~qname')
+               (alter non-defaulted conj ~qname'))))
+
+       ~(when-let [validate# (and (not *compile-files*) (-> name meta :validate))]
+          `(validate @~config-val ~qname' ~validate#))
+
+       ~(if doc
+          `(def ~name ~doc ~config-val)
+          `(def ~name ~config-val)))))
+
 (defmacro defconfig
   "Same as (def name doc-string? init?) except the var's value may be configured
    at load-time by this library.
 
    The following additional metadata is supported:
-     :required - When true, an exception will be thrown if no default nor
-                 configured value is provided.
      :validate - A vector of alternating single-arity predicates and error
                  messages. After a value is set on the var, an exception will be
                  thrown when a predicate, passed the set value, yields false.
 
    Note: default-val will be evaluated, even if a configured value is provided."
   ([name]
-    `(let [var#   (def ~name)
-           qname# (var-symbol var#)]
-       (dosync
-         ; keep consistent with the fact that redefining a bound var does not unbind it
-         (when-not (contains? (ensure defaults) qname#)
-           (alter non-defaulted conj qname#)))
-       (if (present? qname#)
-         (alter-var-root var# (constantly (lookup qname#)))
-         (when (and (-> var# meta :required) (not *compile-files*) (not generating?))
-           (throw (Exception. (str "Missing required value for config var: " qname#)))))
-       (when-let [validate# (and (bound? var#) (not *compile-files*) (-> var# meta :validate))]
-         (validate @var# qname# validate#))
-       var#))
+   (defconfig* name))
   ([name default-val]
-    `(let [default-val# ~default-val
-           var#         (def ~name default-val#)
-           qname#       (var-symbol var#)]
-       (dosync
-         (alter defaults assoc qname# default-val#)
-         (alter non-defaulted disj qname#))
-       (when (present? qname#)
-         (alter-var-root var# (constantly (lookup qname#))))
-       (when-let [validate# (and (not *compile-files*) (-> var# meta :validate))]
-         (validate @var# qname# validate#))
-       var#))
+   (defconfig* name :default-val `~default-val))
   ([name doc default-val]
-    `(let [default-val# ~default-val
-           var#         (def ~name ~doc default-val#)
-           qname#       (var-symbol var#)]
-       (dosync
-         (alter defaults assoc qname# default-val#)
-         (alter non-defaulted disj qname#))
-       (when (present? qname#)
-         (alter-var-root var# (constantly (lookup qname#))))
-       (when-let [validate# (and (not *compile-files*) (-> var# meta :validate))]
-         (validate @var# qname# validate#))
-       var#)))
-
-(defmacro defconfig!
-  "Equivalent to (defconfig ^:required ...)."
-  [name]
-  `(defconfig ~(vary-meta name assoc :required true)))
+   (defconfig* name :doc doc :default-val `~default-val)))
