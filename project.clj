@@ -10,11 +10,4 @@
   :plugins [[codox "0.8.10"]]
   :codox {:src-dir-uri "http://github.com/outpace/config/blob/master/"
           :src-linenum-anchor-prefix "L"}
-  :deploy-repositories [["releases" :clojars]]
-
-  :profiles {:dev {:jvm-opts ["-Dconfig.edn=local-config.edn"
-                              "-Dconfig.etcd=http://local-trek.outpace.com:4001/foobar"
-                              "-Dconfig.ttl-seconds=0"
-                              ]}
-             }
-  )
+  :deploy-repositories [["releases" :clojars]])

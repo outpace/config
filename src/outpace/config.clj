@@ -90,7 +90,7 @@
     (extract (etcd-get name)))
   Optional
   (provided? [_]
-    (not (nil? (etcd/get (etcd-get name))))))
+    (not (nil? (etcd-get name)))))
 
 (defmethod print-method EtcdVal [^EtcdVal ev ^java.io.Writer w]
   (.write w (str "#config/etcd " (pr-str (.name ev)))))
@@ -297,7 +297,8 @@
       (when (not generating?)
           (throw (ex-info "Config var not provided and no default specified"
                           {:qualified-name qname
-                           :provided (get-val @source qname)}))))))
+                           :provided (get-val @source qname)
+                           :source @source}))))))
 
 (defn check-presence [config-val]
   (when (allowed-to-deref?)
