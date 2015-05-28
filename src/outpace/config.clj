@@ -80,8 +80,8 @@
 
 (defn etcd-get [name]
   (etcd/get
-    (if @etcd-prefix
-      (str @etcd-prefix "/" name)
+    (if-let [prefix @etcd-prefix]
+      (str prefix "/" name)
       name)))
 
 (defrecord EtcdVal [name]
