@@ -76,13 +76,21 @@
     (->EnvVal name (System/getenv name) (contains? (System/getenv) name))
     (throw (IllegalArgumentException. (str "Argument to #config/env must be a string: " (pr-str name))))))
 
+(defonce etcd-prefix (atom nil))
+
+(defn etcd-get [name]
+  (etcd/get
+    (if @etcd-prefix
+      (str @etcd-prefix "/" name)
+      name)))
+
 (defrecord EtcdVal [name]
   Extractable
   (extract [_]
-    (extract (etcd/get name)))
+    (extract (etcd-get name)))
   Optional
   (provided? [_]
-    (not (nil? (etcd/get name)))))
+    (not (nil? (etcd/get (etcd-get name))))))
 
 (defmethod print-method EtcdVal [^EtcdVal ev ^java.io.Writer w]
   (.write w (str "#config/etcd " (pr-str (.name ev)))))
@@ -160,9 +168,11 @@
 
 (defn ensure-etcd-connection [uri]
   (when-let [uri' (some-> uri (URI.))]
+    (when-let [prefix (.getPath uri')]
+      (reset! etcd-prefix prefix))
     (etcd/connect! (.getHost uri') (.getPort uri'))))
 
-(defrecord EtcdSource [host]
+(defrecord EtcdSource [uri]
   Source
   (get-val [_ qname]
     (read-edn (->EtcdVal qname))))
@@ -332,6 +342,6 @@
   ([name]
    (defconfig* name))
   ([name default-val]
-   (defconfig* name :default-val default-val))
+   (defconfig* name :default-val `~default-val))
   ([name doc default-val]
-   (defconfig* name :doc doc :default-val default-val)))
+   (defconfig* name :doc doc :default-val `~default-val)))

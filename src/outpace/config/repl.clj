@@ -13,3 +13,7 @@
   (clear-cache!)
   (config/ensure-etcd-connection uri)
   (reset! config/source (config/->EtcdSource uri)))
+
+(defn set-source-map! [m]
+  (clear-cache!)
+  (reset! config/source m))
