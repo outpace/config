@@ -112,6 +112,8 @@ The provided data-readers' tags are:
 - `#config/file` Tags a string, interpreted as a path to a file, and yields the string contents of the file. If the file does not exist, then the var will use its default value or remain unbound.
 - `#config/edn` Tags a string, interpreted as a single EDN-formatted object, and yields the read object.  When composed with `#config/env` or `#config/file`, if the external value is not provided, then the var will use its default value or remain unbound.
 - `#config/etcd` Tags a string, interpreted as a key to lookup a value in etcd.
+- `#config/lookup` Tags a string, looks up a config value from another key in
+  the source (config file or etcd).
 
 [Custom data-readers](http://clojure.org/reader#The Reader--Tagged Literals) whose tag namespace is `config` will be automatically loaded during config initialization. See `outpace.config/read-env` for an example of how to properly implement a custom data-reader.
 
