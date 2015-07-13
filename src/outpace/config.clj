@@ -60,6 +60,22 @@
     (->EnvVal name (System/getenv name) (contains? (System/getenv) name))
     (throw (IllegalArgumentException. (str "Argument to #config/env must be a string: " (pr-str name))))))
 
+(defrecord PropVal [name value defined?]
+  Extractable
+  (extract [_] value)
+  Optional
+  (provided? [_] defined?))
+
+(defmethod print-method PropVal [^PropVal pv ^java.io.Writer w]
+  (.write w (str "#config/property " (pr-str (.name pv)))))
+
+(defn read-property
+  "Returns a PropVal identified by the specified string name."
+  [name]
+  (if (and name (string? name))
+    (->PropVal name (System/getProperty name) (get (System/getProperties) name))
+    (throw (IllegalArgumentException. (str "Argument to #config/property must be a string: " (pr-str name))))))
+
 (defrecord FileVal [path contents exists?]
   Extractable
   (extract [_] contents)
