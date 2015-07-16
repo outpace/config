@@ -7,7 +7,7 @@ vars and their docstrings, default values, etc.
 
 [Latest API Docs](https://outpace.github.io/config/latest/)
 
-[Stable (0.9.0) API Docs](https://outpace.github.io/config/0.9.0/)
+[Stable (0.10.0) API Docs](https://outpace.github.io/config/0.10.0/)
 
 ## Installation
 
