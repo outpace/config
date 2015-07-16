@@ -73,22 +73,22 @@
 
 (defn prop-var-name []
   (let [name (first (keys (java.lang.System/getProperties)))]
-    (assert name "Cannot test read-property without environment variables")
+    (assert name "Cannot test read-property without properties defined")
     name))
 
 (defn missing-prop-var-name []
-  (let [ks   (set (keys (System/getProperties)))]
+  (let [ks (set (keys (System/getProperties)))]
     (first (remove ks (map str (range))))))
 
 (deftest test-read-prop
-  (testing "PropVal for extant environment variable."
+  (testing "PropVal for extant property variable."
     (let [name  (prop-var-name)
           value (System/getProperty name)
           ev    (read-property name)]
       (is (instance? PropVal ev))
       (is (= value (extract ev)))
       (is (provided? ev))))
-  (testing "PropVal for missing environment variable."
+  (testing "PropVal for missing property variable."
     (let [name (missing-prop-var-name)
           ev   (read-property name)]
       (is (instance? PropVal ev))
