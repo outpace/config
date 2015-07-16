@@ -5,7 +5,8 @@
            java.io.File
            outpace.config.EdnVal
            outpace.config.EnvVal
-           outpace.config.FileVal))
+           outpace.config.FileVal
+           outpace.config.PropVal))
 
 (defn unmap-non-fn-vars [ns]
   (doseq [[sym var] (ns-interns ns)]
@@ -52,6 +53,45 @@
     (let [name (missing-env-var-name)
           ev   (read-env name)]
       (is (instance? EnvVal ev))
+      (is (nil? (extract ev)))
+      (is (not (provided? ev))))))
+
+(deftest test-PropVal
+  (let [name     "name"
+        value    "value"
+        defined? true
+        ev       (->PropVal name value defined?)]
+    (testing "PropVal fields"
+      (is (= name (:name ev)))
+      (is (= value (:value ev)))
+      (is (= defined? (:defined? ev))))
+    (testing "PropVal protocol implementations"
+      (is (= value (extract ev)))
+      (is (= defined? (provided? ev))))
+    (testing "PropVal edn-printing"
+      (is (= (str "#config/property " (pr-str name)) (pr-str ev))))))
+
+(defn prop-var-name []
+  (let [name (first (keys (java.lang.System/getProperties)))]
+    (assert name "Cannot test read-property without properties defined")
+    name))
+
+(defn missing-prop-var-name []
+  (let [ks (set (keys (System/getProperties)))]
+    (first (remove ks (map str (range))))))
+
+(deftest test-read-prop
+  (testing "PropVal for extant property variable."
+    (let [name  (prop-var-name)
+          value (System/getProperty name)
+          ev    (read-property name)]
+      (is (instance? PropVal ev))
+      (is (= value (extract ev)))
+      (is (provided? ev))))
+  (testing "PropVal for missing property variable."
+    (let [name (missing-prop-var-name)
+          ev   (read-property name)]
+      (is (instance? PropVal ev))
       (is (nil? (extract ev)))
       (is (not (provided? ev))))))
 
@@ -147,6 +187,23 @@
   (testing "EdnVal recurses for missing environment variable."
     (let [name (missing-env-var-name)
           source (str "{:foo 123 :bar (#{[{:baz #config/env " (pr-str name) "}]})}")
+          value   {:foo 123 :bar (list #{[{:baz nil}]})}
+          ev (read-edn source)]
+      (is (instance? EdnVal ev))
+      (is (= value (extract ev)))
+      (is (not (provided? ev)))))
+  (testing "EdnVal recurses for extant property value."
+    (let [name (prop-var-name)
+          value (System/getProperty name)
+          source (str "{:foo 123 :bar (#{[{:baz #config/property " (pr-str name) "}]})}")
+          value   {:foo 123 :bar (list #{[{:baz value}]})}
+          ev (read-edn source)]
+      (is (instance? EdnVal ev))
+      (is (= value (extract ev)))
+      (is (provided? ev))))
+  (testing "EdnVal recurses for missing property value."
+    (let [name (missing-prop-var-name)
+          source (str "{:foo 123 :bar (#{[{:baz #config/property " (pr-str name) "}]})}")
           value   {:foo 123 :bar (list #{[{:baz nil}]})}
           ev (read-edn source)]
       (is (instance? EdnVal ev))

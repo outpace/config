@@ -46,6 +46,7 @@ Configuration is provided in an [EDN](http://edn-format.org) map of namespaced s
 com.example/greeting       "Hello World!"
 com.example/tree           {:id 1, :children #{{:id 2} {:id 3}}}
 com.example/aws-secret-key #config/env "AWS_SECRET_KEY"
+com.example/path           #config/property "some.path"
 com.example/db-password    #config/file "db-password.txt"
 com.example/secret-edn     #config/edn #config/file "secret_key.edn"
 }
@@ -101,8 +102,9 @@ Recognizing that it is not always appropriate to provide configuration values di
 The provided data-readers' tags are:
 
 - `#config/env` Tags a string, interpreted as the name of an environment variable, and yields the string value of the environment variable. If the environment does not have that entry, then the var will use its default value or remain unbound.
+- `#config/property` Tags a string, interpreted as the name of java system property, and yields the string value of the property. If there is no property defined by this name, then the var will use its default value or remain unbound.
 - `#config/file` Tags a string, interpreted as a path to a file, and yields the string contents of the file. If the file does not exist, then the var will use its default value or remain unbound.
-- `#config/edn` Tags a string, interpreted as a single EDN-formatted object, and yields the read object.  When composed with `#config/env` or `#config/file`, if the external value is not provided, then the var will use its default value or remain unbound.
+- `#config/edn` Tags a string, interpreted as a single EDN-formatted object, and yields the read object.  When composed with `#config/env`, `#config/file`, or `#config/property`, if the external value is not provided, then the var will use its default value or remain unbound.
 
 [Custom data-readers](http://clojure.org/reader#The Reader--Tagged Literals) whose tag namespace is `config` will be automatically loaded during config initialization. See `outpace.config/read-env` for an example of how to properly implement a custom data-reader.
 
