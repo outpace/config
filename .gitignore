@@ -12,3 +12,7 @@ lib
 pom.xml
 pom.xml.asc
 target
+
+# intellij IDEA
+.idea
+*.iml
