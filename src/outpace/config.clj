@@ -141,11 +141,16 @@
       (throw (IllegalArgumentException. (str "Configuration keys must be namespaced symbols: " (pr-str invalid-keys)))))
     (vary-meta config-map assoc ::source source)))
 
+(defn load-config
+  "Finds and loads config."
+  []
+  (if-let [source (find-config-source)]
+    (read-config source)
+    {}))
+
 (def config
   "The delayed map of explicit configuration values."
-  (delay (if-let [source (find-config-source)]
-           (read-config source)
-           {})))
+  (delay (load-config)))
 
 (defn present?
   "Returns true if a configuration entry exists for the qname and, if an
