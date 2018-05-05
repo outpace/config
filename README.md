@@ -7,7 +7,7 @@ vars and their docstrings, default values, etc.
 
 [Latest API Docs](https://outpace.github.io/config/latest/)
 
-[Stable (0.10.0) API Docs](https://outpace.github.io/config/0.10.0/)
+[Stable (0.11.0) API Docs](https://outpace.github.io/config/0.11.0/)
 
 ## Installation
 
@@ -227,6 +227,9 @@ after the configured value.  Likewise, commented-out entries will be included
 when their default values are used.
 
 ## Change Log
+
+### v0.11.0
+- Fixed `outpace.config.repl/reload` to re-read config.
 
 ### v0.10.0
 - Add `#config/property` data-reader which sets a config var's value to the
