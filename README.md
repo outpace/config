@@ -1,6 +1,5 @@
 # Config
 
-
 A library for declaring configuration vars and setting their values in a
 centralized fashion. Included tooling allows one to gather and emit all config
 vars and their docstrings, default values, etc.
@@ -8,6 +7,9 @@ vars and their docstrings, default values, etc.
 [Latest API Docs](https://outpace.github.io/config/latest/)
 
 [Stable (0.11.0) API Docs](https://outpace.github.io/config/0.11.0/)
+
+[![Build Status](https://travis-ci.org/outpace/config.svg?branch=master)](https://travis-ci.org/outpace/config)
+
 
 ## Installation
 
