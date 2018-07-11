@@ -247,6 +247,9 @@ when their default values are used.
 
 ## Change Log
 
+### v0.12.0
+- Add support for `#config/or`
+
 ### v0.11.0
 - Fixed `outpace.config.repl/reload` to re-read config.
 
