@@ -6,7 +6,7 @@ vars and their docstrings, default values, etc.
 
 [Latest API Docs](https://outpace.github.io/config/latest/)
 
-[Stable (0.11.0) API Docs](https://outpace.github.io/config/0.11.0/)
+[Stable (0.12.0) API Docs](https://outpace.github.io/config/0.12.0/)
 
 [![Build Status](https://travis-ci.org/outpace/config.svg?branch=master)](https://travis-ci.org/outpace/config)
 
