@@ -6,6 +6,7 @@
            outpace.config.EdnVal
            outpace.config.EnvVal
            outpace.config.FileVal
+           outpace.config.OrVal
            outpace.config.PropVal))
 
 (defn unmap-non-fn-vars [ns]
@@ -126,6 +127,80 @@
         (is (instance? FileVal fv))
         (is (nil? (extract fv)))
         (is (not (provided? fv)))))))
+
+(deftest test-OrVal
+  (testing "no values"
+    (let [or-val (->OrVal [])]
+      (is (nil? (extract or-val)))
+      (is (false? (provided? or-val)))
+      (is (= "#config/or []"
+             (pr-str or-val)))))
+  (testing "one undefined value"
+    (let [or-val (->OrVal [(->EnvVal "foo" nil false)])]
+      (is (nil? (extract or-val)))
+      (is (false? (provided? or-val)))
+      (is (= "#config/or [#config/env \"foo\"]"
+             (pr-str or-val)))))
+  (testing "one defined value"
+    (let [or-val (->OrVal [(->EnvVal "foo" 42 true)])]
+      (is (= 42 (extract or-val)))
+      (is (true? (provided? or-val)))
+      (is (= "#config/or [#config/env \"foo\"]"
+             (pr-str or-val)))))
+  (testing "two defined values"
+    (let [or-val (->OrVal [(->EnvVal "foo" 42 true)
+                           (->EnvVal "bar" 3.14 true)])]
+      (is (= 42 (extract or-val)))
+      (is (true? (provided? or-val)))
+      (is (= "#config/or [#config/env \"foo\" #config/env \"bar\"]"
+             (pr-str or-val)))))
+  (testing "one undefined value and one defined value"
+    (let [or-val (->OrVal [(->EnvVal "foo" nil false)
+                           (->EnvVal "bar" 3.14 true)])]
+      (is (= 3.14 (extract or-val)))
+      (is (true? (provided? or-val)))
+      (is (= "#config/or [#config/env \"foo\" #config/env \"bar\"]"
+             (pr-str or-val))))))
+
+(deftest test-read-or
+  (testing "no values"
+    (let [val (read-or [])]
+      (is (instance? OrVal val))
+      (is (nil? (extract val)))
+      (is (false? (provided? val)))))
+  (testing "one defined value"
+    (let [ev-name (env-var-name)
+          value (System/getenv ev-name)
+          val (read-or [(read-env ev-name)])]
+      (is (instance? OrVal val))
+      (is (= value (extract val)))
+      (is (provided? val))))
+  (testing "one undefined value"
+    (let [ev-name (missing-env-var-name)
+          val (read-or [(read-env ev-name)])]
+      (is (instance? OrVal val))
+      (is (nil? (extract val)))
+      (is (false? (provided? val)))))
+  (testing "one constant and one undefined value"
+    (let [ev-name (missing-env-var-name)
+          val (read-or [1 (read-env ev-name)])]
+      (is (instance? OrVal val))
+      (is (= 1 (extract val)))
+      (is (true? (provided? val)))))
+  (testing "one undefined value and one constant"
+    (let [ev-name (missing-env-var-name)
+          val (read-or [(read-env ev-name) 1])]
+      (is (instance? OrVal val))
+      (is (= 1 (extract val)))
+      (is (true? (provided? val)))))
+  (testing "one undefined value and one defined value"
+    (let [ev-name (missing-env-var-name)
+          prop-name (prop-var-name)
+          val (read-or [(read-env ev-name) (read-property prop-name)])]
+      (is (instance? OrVal val))
+      (is (= (System/getProperty prop-name)
+             (extract val)))
+      (is (true? (provided? val))))))
 
 (deftest test-EdnVal
   (let [source           "{}"
