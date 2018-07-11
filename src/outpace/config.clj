@@ -95,6 +95,36 @@
         (->FileVal path nil false)))
     (throw (IllegalArgumentException. (str "Argument to #config/file must be a string: " (pr-str path))))))
 
+(defrecord OrVal [vals]
+  Extractable
+  (extract [_]
+    (reduce (fn [x v]
+              (if (provided? v)
+                (reduced (extract v))
+                x))
+            nil
+            vals))
+  Optional
+  (provided? [_]
+    (reduce (fn [x v]
+              (if (provided? v)
+                (reduced true)
+                false))
+            false
+            vals)))
+
+(defmethod print-method OrVal [^OrVal v ^java.io.Writer w]
+  (.write w "#config/or ")
+  (.write w (pr-str (.vals v))))
+
+(defn read-or
+  "Returns an OrVal from a vector."
+  [source]
+  (if (vector? source)
+    (->OrVal source)
+    (throw (IllegalArgumentException. (str "Argument to #config/or must be a vector: "
+                                           (pr-str source))))))
+
 (defrecord EdnVal [source value source-provided?]
   Extractable
   (extract [_] value)
