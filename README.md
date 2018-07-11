@@ -157,6 +157,23 @@ initialization. See `outpace.config/read-env` for an example of how to properly
 implement a custom data-reader.
 
 
+## Backup configuration sources
+
+It is possible to use `#config/or` to be able to use multiple sources of
+external configuration values.  It tags a vector where the first external value
+will be used.
+
+In the following example, the value from the environment variable `APP_HOME`
+will be used.  However, if it is not provided, it will fall back to the
+`app.home` system property.  If neither external value is availabe, the var
+will use its default value or remain unbound.
+
+```clojure
+#config/or [#config/env "APP_HOME"
+            #config/property "app.home"]
+```
+
+
 ## Generator Usage
 
 The `outpace.config.generate` namespace exists to generate a `config.edn` file
