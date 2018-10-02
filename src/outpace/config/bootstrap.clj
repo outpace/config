@@ -11,11 +11,15 @@
 (defn find-config-source
   "Returns the first config EDN source found from:
      - explicit-config-source, if non-nil
+     - URL to a resource file pointed to by the value of the \"resource.config.edn\" system property, if present
+     - nil if the \"resource.config.edn\" system property is present, but the resource file is not present
      - the value of the \"config.edn\" system property, if present
      - \"config.edn\", if the file exists in the current working directory
    otherwise nil."
   []
   (or explicit-config-source
-      (System/getProperty "config.edn")
-      (when (.exists (io/file "config.edn"))
-        "config.edn")))
+      (if-let [res (System/getProperty "resource.config.edn")]
+        (io/resource res)
+        (or (System/getProperty "config.edn")
+            (when (.exists (io/file "config.edn"))
+              "config.edn")))))

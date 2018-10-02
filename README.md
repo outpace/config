@@ -79,7 +79,8 @@ ways:
 2. A `config.edn` java system property (e.g., a command line arg
    `-Dconfig.edn=...`). The value can be any string consumable by
    [`clojure.java.io/reader`](http://clojure.github.io/clojure/clojure.java.io-api.html#clojure.java.io/reader).
-3. Setting `outpace.config.bootstrap/explicit-config-source` to any non-nil
+3. A `resource.config.edn` java system property pointing to a resource file.
+4. Setting `outpace.config.bootstrap/explicit-config-source` to any non-nil
    value consumable by
    [`clojure.java.io/reader`](http://clojure.github.io/clojure/clojure.java.io-api.html#clojure.java.io/reader).
 
@@ -89,6 +90,13 @@ property for an environment-specific configuration EDN file:
 ```clojure
 :profiles {:test {:jvm-opts ["-Dconfig.edn=test-config.edn"]}
            :prod {:jvm-opts ["-Dconfig.edn=prod-config.edn"]}}
+```
+
+Alternatively, different profiles can share the same config file name, but use different resource paths:
+
+```clojure
+:profiles {:test {:resource-paths ["test_resources"] :jvm-opts ["-Dresource.config.edn=app-config.edn"]}
+           :prod {:resource-paths ["prod_resources"] :jvm-opts ["-Dresource.config.edn=app-config.edn"]}}
 ```
 
 

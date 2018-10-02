@@ -5,6 +5,7 @@
             :url "http://www.apache.org/licenses/LICENSE-2.0.html"}
   :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
                  [org.clojure/tools.namespace "0.2.10"]]
+  :profiles {:dev {:resource-paths ["test_resources"]}}
   :plugins [[lein-codox "0.10.4"]]
   :codox {:src-dir-uri "http://github.com/outpace/config/blob/master/"
           :src-linenum-anchor-prefix "L"}
