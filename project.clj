@@ -1,4 +1,4 @@
-(defproject com.outpace/config "0.13.0"
+(defproject com.outpace/config "0.13.1-SNAPSHOT"
   :description "A library for declaring and setting configuration vars."
   :url "https://github.com/outpace/config"
   :license {:name "Apache License, Version 2.0"
