@@ -6,7 +6,7 @@ vars and their docstrings, default values, etc.
 
 [Latest API Docs](https://outpace.github.io/config/latest/)
 
-[Stable (0.12.0) API Docs](https://outpace.github.io/config/0.12.0/)
+[Stable (0.13.0) API Docs](https://outpace.github.io/config/0.13.0/)
 
 [![Build Status](https://travis-ci.org/outpace/config.svg?branch=master)](https://travis-ci.org/outpace/config)
 
@@ -254,6 +254,10 @@ after the configured value.  Likewise, commented-out entries will be included
 when their default values are used.
 
 ## Change Log
+
+### v0.13.0
+- Add support for loading configuration from resources via the
+  `resources.config.edn` system property. @rafalprzywarski
 
 ### v0.12.0
 - Add support for `#config/or`
