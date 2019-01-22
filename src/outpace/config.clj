@@ -268,12 +268,13 @@
          ; keep consistent with the fact that redefining a bound var does not unbind it
          (when-not (contains? (ensure defaults) qname#)
            (alter non-defaulted conj qname#)))
-       (if (present? qname#)
-         (alter-var-root var# (constantly (lookup qname#)))
-         (when (and (-> var# meta :required) (not *compile-files*) (not generating?))
-           (throw (Exception. (str "Missing required value for config var: " qname#)))))
-       (when-let [validate# (and (bound? var#) (not *compile-files*) (-> var# meta :validate))]
-         (validate @var# qname# validate#))
+       (when-not *compile-files*
+         (if (present? qname#)
+           (alter-var-root var# (constantly (lookup qname#)))
+           (when (and (-> var# meta :required) (not generating?))
+             (throw (Exception. (str "Missing required value for config var: " qname#)))))
+         (when-let [validate# (and (bound? var#) (-> var# meta :validate))]
+           (validate @var# qname# validate#)))
        var#))
   ([name default-val]
     `(let [default-val# ~default-val
@@ -282,10 +283,11 @@
        (dosync
          (alter defaults assoc qname# default-val#)
          (alter non-defaulted disj qname#))
-       (when (present? qname#)
-         (alter-var-root var# (constantly (lookup qname#))))
-       (when-let [validate# (and (not *compile-files*) (-> var# meta :validate))]
-         (validate @var# qname# validate#))
+       (when-not *compile-files*
+         (when (present? qname#)
+           (alter-var-root var# (constantly (lookup qname#))))
+         (when-let [validate# (-> var# meta :validate)]
+           (validate @var# qname# validate#)))
        var#))
   ([name doc default-val]
     `(let [default-val# ~default-val
@@ -294,10 +296,11 @@
        (dosync
          (alter defaults assoc qname# default-val#)
          (alter non-defaulted disj qname#))
-       (when (present? qname#)
-         (alter-var-root var# (constantly (lookup qname#))))
-       (when-let [validate# (and (not *compile-files*) (-> var# meta :validate))]
-         (validate @var# qname# validate#))
+       (when-not *compile-files*
+         (when (present? qname#)
+           (alter-var-root var# (constantly (lookup qname#))))
+         (when-let [validate# (-> var# meta :validate)]
+           (validate @var# qname# validate#)))
        var#)))
 
 (defmacro defconfig!

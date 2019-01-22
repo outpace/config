@@ -359,7 +359,11 @@
           (is (nil? (:doc (meta #'hhh))))
           (is (= :config hhh))
           (is (not (contains? @c/non-defaulted `hhh)))
-          (is (= :default3 (@c/defaults `hhh))))))))
+          (is (= :default3 (@c/defaults `hhh)))))))
+  (testing "When compiling should not read config"
+    (binding [*compile-files* true]
+      (with-redefs [c/config (delay (throw (java.io.FileNotFoundException. "should never happen")))]
+        (defconfig iii)))))
 
 (deftest test-defconfig!
   (testing "Preserves metadata"
