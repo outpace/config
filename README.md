@@ -255,6 +255,9 @@ when their default values are used.
 
 ## Change Log
 
+### v0.13.1
+- Do not read configuration when compiling.
+
 ### v0.13.0
 - Add support for loading configuration from resources via the
   `resources.config.edn` system property. @rafalprzywarski
