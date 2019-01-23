@@ -203,7 +203,11 @@ Alternately, one can just invoke `lein config` by adding the following to
 :aliases {"config" ["run" "-m" "outpace.config.generate"]}
 ```
 
-The generator can take an optional `:strict` flag (e.g., `lein config :strict`)
+The generator can take an optional `:check` flag (e.g., `lein config :check`)
+that causes it to print unbound and unused config vars to stdout. It will not
+generate a config file.
+
+The generator can also take a `:strict` flag (e.g., `lein config :strict`)
 that will result in an exception after file generation if there are any config
 vars with neither a default value nor configured value. This can be used to
 provide feedback to automated build systems.
