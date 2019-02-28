@@ -89,7 +89,8 @@
       (str (doc-str sym)
            sym-str " " def-str nl-str))))
 
-(defn- generate-config []
+(defn- check-config
+  []
   (let [config-map      @conf/config
         default-map     @conf/defaults
         nodefault-set   @conf/non-defaulted
@@ -100,72 +101,97 @@
         unbound-set     (into (sorted-set) (set/difference nodefault-set available-set))
         unused-set      (into (sorted-set) (set/difference available-set wanted-set))
         used-set        (into (sorted-set) (set/intersection available-set wanted-set))]
-    (with-out-str
-      (println "{")
-      (when (seq unbound-set)
-        (println)
-        (println ";; UNBOUND CONFIG VARS:")
-        (println)
-        (print (->> unbound-set
-                 (map unbound-str)
-                 (interpose nl-str)
-                 (apply str)))
-        (println))
-      (when (seq unused-set)
-        (println)
-        (println ";; UNUSED CONFIG ENTRIES:")
-        (println)
-        (print (->> unused-set
-                 (map (fn [sym]
-                        (entry-str sym (get config-map sym))))
-                 (interpose nl-str)
-                 (apply str)))
-        (println))
-      (when (seq used-set)
-        (println)
-        (println ";; CONFIG ENTRIES:")
-        (println)
-        (print (->> used-set
-                 (map (fn [sym]
-                        (if (contains? config-keyset sym)
-                          (if (contains? default-map sym)
-                            (entry-str sym (get config-map sym) (get default-map sym))
-                            (entry-str sym (get config-map sym)))
-                          (default-str sym (get default-map sym)))))
-                 (interpose nl-str)
-                 (apply str)))
-        (println))
-      (println "}"))))
+    {:config-map config-map
+     :config-keyset config-keyset
+     :default-map default-map
+     :unbound-set unbound-set
+     :unused-set unused-set
+     :used-set used-set}))
+
+(defn- print-unbound
+  [unbound-set]
+  (when (seq unbound-set)
+    (println)
+    (println ";; UNBOUND CONFIG VARS:")
+    (println)
+    (print (->> unbound-set
+                (map unbound-str)
+                (interpose nl-str)
+                (apply str)))
+    (println)))
+
+(defn- print-unused
+  [unused-set config-map]
+  (when (seq unused-set)
+    (println)
+    (println ";; UNUSED CONFIG ENTRIES:")
+    (println)
+    (print (->> unused-set
+                (map (fn [sym]
+                       (entry-str sym (get config-map sym))))
+                (interpose nl-str)
+                (apply str)))
+    (println)))
+
+(defn- generate-config
+  [{:keys [config-map config-keyset default-map unbound-set unused-set used-set]}]
+  (with-out-str
+    (println "{")
+    (print-unbound unbound-set)
+    (print-unused unused-set config-map)
+    (when (seq used-set)
+      (println)
+      (println ";; CONFIG ENTRIES:")
+      (println)
+      (print (->> used-set
+                  (map (fn [sym]
+                         (if (contains? config-keyset sym)
+                           (if (contains? default-map sym)
+                             (entry-str sym (get config-map sym) (get default-map sym))
+                             (entry-str sym (get config-map sym)))
+                           (default-str sym (get default-map sym)))))
+                  (interpose nl-str)
+                  (apply str)))
+      (println))
+    (println "}")))
 
 (defn- generate-config-file []
   (let [dest (or (boot/find-config-source) "config.edn")]
     (println "Generating" dest)
-    (spit dest (generate-config))))
+    (spit dest (generate-config (check-config)))))
 
 (defn- generate-config-file-strict []
   (generate-config-file)
   (when-let [unbound-set (seq (conf/unbound))]
     (throw (Exception. (str "Generated a config EDN file with unbound config vars: " (pr-str (sort unbound-set)))))))
 
+(defn- generate-config-check []
+  (let [{:keys [unbound-set unused-set config-map]} (check-config)]
+    (print-unbound unbound-set)
+    (print-unused unused-set config-map)))
+
 (defn -main
   "Generates a config EDN file from the defconfig entries on the classpath.
    Writes to the configuration source if provided, otherwise to 'config.edn'.
 
    The following flags are supported:
-     :strict Errors on config vars with neither a default nor configured value"
+     :strict Errors on config vars with neither a default nor configured value
+     :check Print unbound and unused config vars; Don't write a new config.edn file"
   [& flags]
   (println "Loading namespaces")
   (with-redefs [conf/generating? true]
     (let [strict? (some #{":strict"} flags)
+          check? (some #{":check"} flags)
           config-file (boot/find-config-source)]
       (when (and config-file (not (.exists (io/file config-file))))
         ;; When an explicit config-source is provided, make sure the file exists
         ;; before loading the config ns, otherwise it would be considered an error.
         (spit config-file "{}"))
       (binding [*e nil]
-        (nsr/refresh :after (if strict?
-                              `generate-config-file-strict
-                              `generate-config-file))
+        (nsr/refresh :after (cond
+                              check? `generate-config-check
+                              strict? `generate-config-file-strict
+                              :else `generate-config-file))
         (when *e
           (print-cause-trace *e)))))
   (shutdown-agents))
