@@ -259,6 +259,9 @@ when their default values are used.
 
 ## Change Log
 
+### v0.13.2
+- Add `:check` flag for `generate`.
+
 ### v0.13.1
 - Do not read configuration when compiling.
 
