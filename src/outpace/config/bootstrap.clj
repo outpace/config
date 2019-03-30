@@ -22,4 +22,5 @@
         (io/resource res)
         (or (System/getProperty "config.edn")
             (when (.exists (io/file "config.edn"))
-              "config.edn")))))
+              "config.edn")))
+      (println "WARNING: no config source could be found.")))
