@@ -312,3 +312,8 @@
          (when-let [validate# (-> var# meta :validate)]
            (validate @var# qname# validate#)))
        var#)))
+
+(defmacro defconfig!
+  "Equivalent to (defconfig ^:required ...)."
+  [name]
+  `(defconfig ~(vary-meta name assoc :required true)))
