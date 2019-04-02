@@ -279,8 +279,8 @@
          (if (present? qname#)
            (alter-var-root var# (constantly (lookup qname#)))
            (when (and (-> var# meta :required) (not generating?))
-             (let [message# (if-let [source (config-source)]
-                              (str "Config var " qname# " must define a default or be specified in " source)
+             (let [message# (if-let [source# (config-source)]
+                              (str "Config var " qname# " must define a default or be specified in " source#)
                               (str "Config var " qname# " must define a default when there is no config source"))]
                (throw (Exception. message#)))))
          (when-let [validate# (and (bound? var#) (-> var# meta :validate))]
