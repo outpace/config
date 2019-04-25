@@ -447,6 +447,6 @@
 
 (deftest config-source-test
   (let [source "config.clj"
-        config (atom (with-meta {} {:source source}))]
+        config (delay (with-meta {} {:source source}))]
     (with-redefs [c/config config]
       (is (= source (c/config-source))))))
