@@ -444,3 +444,9 @@
     (is (not (c/provided? #{(extractable "bar" false)})))
     (is (not (c/provided? (list (extractable "bar" false)))))
     (is (not (c/provided? [(extractable "bar" false)])))))
+
+(deftest config-source-test
+  (let [source "config.clj"
+        config (atom (with-meta {} {:source source}))]
+    (with-redefs [c/config config]
+      (is (= source (c/config-source))))))
