@@ -159,7 +159,7 @@ The provided data-readers' tags are:
   `#config/property`, if the external value is not provided, then the var will
   use its default value or remain unbound.
 
-[Custom data-readers](http://clojure.org/reader#The Reader--Tagged Literals)
+[Custom data-readers](https://clojure.org/reference/reader#tagged_literals)
 whose tag namespace is `config` will be automatically loaded during config
 initialization. See `outpace.config/read-env` for an example of how to properly
 implement a custom data-reader.
