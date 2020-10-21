@@ -259,6 +259,9 @@ when their default values are used.
 
 ## Change Log
 
+### v0.13.4
+- Changes where the attempt to load `outpace.config-aws` occurs.
+
 ### v0.13.3
 - Tries to load `outpace.config-aws` as part of the `outpace.config` namespace
 

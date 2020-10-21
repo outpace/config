@@ -4,10 +4,6 @@
             [clojure.set :as set]
             [outpace.config.bootstrap :refer [find-config-source]]))
 
-(try
-  (require 'outpace.config-aws)
-  (catch Exception _))
-
 (def generating? false)
 
 (defprotocol Extractable
@@ -311,3 +307,7 @@
   "Equivalent to (defconfig ^:required ...)."
   [name]
   `(defconfig ~(vary-meta name assoc :required true)))
+
+(try
+  (require 'outpace.config-aws)
+  (catch Exception _))
