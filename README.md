@@ -259,6 +259,9 @@ when their default values are used.
 
 ## Change Log
 
+### v0.13.3
+- Tries to load `outpace.config-aws` as part of the `outpace.config` namespace
+
 ### v0.13.2
 - Add `:check` flag for `generate`.
 

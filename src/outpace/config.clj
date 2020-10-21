@@ -4,6 +4,10 @@
             [clojure.set :as set]
             [outpace.config.bootstrap :refer [find-config-source]]))
 
+(try
+  (require 'outpace.config-aws)
+  (catch Exception _))
+
 (def generating? false)
 
 (defprotocol Extractable
