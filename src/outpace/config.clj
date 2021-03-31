@@ -175,12 +175,19 @@
   "Finds and loads config."
   []
   (if-let [source (find-config-source)]
-    (read-config source)
+    (with-meta (read-config source) :source source)
     {}))
 
 (def config
   "The delayed map of explicit configuration values."
   (delay (load-config)))
+
+(defn config-source
+  "Returns the source of config as string or nil if no source was
+  found."
+  []
+  (when-let [source (:source (meta @config))]
+    (str source)))
 
 (defn present?
   "Returns true if a configuration entry exists for the qname and, if an
@@ -272,7 +279,10 @@
          (if (present? qname#)
            (alter-var-root var# (constantly (lookup qname#)))
            (when (and (-> var# meta :required) (not generating?))
-             (throw (Exception. (str "Missing required value for config var: " qname#)))))
+             (let [message# (if-let [source# (config-source)]
+                              (str "Config var " qname# " must define a default or be specified in " source#)
+                              (str "Config var " qname# " must define a default when there is no config source"))]
+               (throw (Exception. message#)))))
          (when-let [validate# (and (bound? var#) (-> var# meta :validate))]
            (validate @var# qname# validate#)))
        var#))
