@@ -2,6 +2,7 @@
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.set :as set]
+            [clojure.pprint]
             [outpace.config.bootstrap :refer [find-config-source]]))
 
 (def generating? false)
@@ -53,6 +54,9 @@
 (defmethod print-method EnvVal [^EnvVal ev ^java.io.Writer w]
   (.write w (str "#config/env " (pr-str (.name ev)))))
 
+(defmethod clojure.pprint/simple-dispatch EnvVal [v]
+  (pr v))
+
 (defn read-env
   "Returns an EnvVal identified by the specified string name."
   [name]
@@ -69,6 +73,9 @@
 (defmethod print-method PropVal [^PropVal pv ^java.io.Writer w]
   (.write w (str "#config/property " (pr-str (.name pv)))))
 
+(defmethod clojure.pprint/simple-dispatch PropVal [v]
+  (pr v))
+
 (defn read-property
   "Returns a PropVal identified by the specified string name."
   [name]
@@ -84,6 +91,9 @@
 
 (defmethod print-method FileVal [^FileVal fv ^java.io.Writer w]
   (.write w (str "#config/file " (pr-str (.path fv)))))
+
+(defmethod clojure.pprint/simple-dispatch FileVal [v]
+  (pr v))
 
 (defn read-file
   "Returns a FileVal identified by the specified string path."
@@ -117,6 +127,9 @@
   (.write w "#config/or ")
   (.write w (pr-str (.vals v))))
 
+(defmethod clojure.pprint/simple-dispatch OrVal [v]
+  (pr v))
+
 (defn read-or
   "Returns an OrVal from a vector."
   [source]
@@ -133,6 +146,9 @@
 
 (defmethod print-method EdnVal [^EdnVal ev ^java.io.Writer w]
   (.write w (str "#config/edn " (pr-str (.source ev)))))
+
+(defmethod clojure.pprint/simple-dispatch EdnVal [v]
+  (pr v))
 
 (defn read-edn
   "Returns an EdnVal from a string value. Can be composed with other readers."
