@@ -1,5 +1,7 @@
 (ns outpace.config-test
   (:require [clojure.test :as t :refer [deftest is testing]]
+            [clojure.pprint]
+            [clojure.string :as str]
             [outpace.config :as c :refer [defconfig defconfig!]])
   (:import (clojure.lang ExceptionInfo)
            (java.io File)
@@ -14,6 +16,11 @@
                         (unmap-non-fn-vars *ns*)
                         (f)))
 
+(defn pprint-str [v]
+  (str/trim-newline
+   (with-out-str
+     (clojure.pprint/pprint v))))
+
 (deftest test-EnvVal
   (let [name     "name"
         value    "value"
@@ -27,7 +34,9 @@
       (is (= value (c/extract ev)))
       (is (= defined? (c/provided? ev))))
     (testing "EnvVal edn-printing"
-      (is (= (str "#config/env " (pr-str name)) (pr-str ev))))))
+      (is (= (str "#config/env " (pr-str name)) (pr-str ev))))
+    (testing "EnvVal nested pprinting"
+      (is (= (str "{:foo #config/env " (pr-str name) "}") (pprint-str {:foo ev}))))))
 
 (defn env-var-name []
   (let [name (first (keys (java.lang.System/getenv)))]
@@ -66,7 +75,9 @@
       (is (= value (c/extract ev)))
       (is (= defined? (c/provided? ev))))
     (testing "PropVal edn-printing"
-      (is (= (str "#config/property " (pr-str name)) (pr-str ev))))))
+      (is (= (str "#config/property " (pr-str name)) (pr-str ev))))
+    (testing "PropVal nested pprinting"
+      (is (= (str "{:foo #config/property " (pr-str name) "}") (pprint-str {:foo ev}))))))
 
 (defn prop-var-name []
   (let [name (first (keys (java.lang.System/getProperties)))]
@@ -105,7 +116,9 @@
       (is (= contents (c/extract fv)))
       (is (= exists? (c/provided? fv))))
     (testing "FileVal edn-printing"
-      (is (= (str "#config/file " (pr-str path)) (pr-str fv))))))
+      (is (= (str "#config/file " (pr-str path)) (pr-str fv))))
+    (testing "FileVal nested pprinting"
+      (is (= (str "{:foo #config/file " (pr-str path) "}") (pprint-str {:foo fv}))))))
 
 (deftest test-read-file
   (let [file     (File/createTempFile "test-read-file" ".txt")
@@ -156,7 +169,12 @@
       (is (= 3.14 (c/extract or-val)))
       (is (true? (c/provided? or-val)))
       (is (= "#config/or [#config/env \"foo\" #config/env \"bar\"]"
-             (pr-str or-val))))))
+             (pr-str or-val)))))
+  (testing "OrVal nested pprinting"
+    (let [or-val (c/->OrVal [(c/->EnvVal "foo" nil false)
+                             (c/->EnvVal "bar" 3.14 true)])]
+      (is (= "{:key #config/or [#config/env \"foo\" #config/env \"bar\"]}"
+             (pprint-str {:key or-val}))))))
 
 (deftest test-read-or
   (testing "no values"
@@ -211,7 +229,9 @@
       (is (= value (c/extract ev)))
       (is (= source-provided? (c/provided? ev))))
     (testing "EdnVal edn-printing"
-      (is (= (str "#config/edn " (pr-str source)) (pr-str ev))))))
+      (is (= (str "#config/edn " (pr-str source)) (pr-str ev))))
+    (testing "EdnVal nested pprinting"
+      (is (= (str "{:foo #config/edn " (pr-str source) "}") (pprint-str {:foo ev}))))))
 
 (defn extractable [value provided]
   (reify
